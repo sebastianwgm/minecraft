@@ -83,6 +83,7 @@ export const blankCubeFSText = `
     }
 
     // Marble-like texture function
+    // Using sin function
     // TODO: maybe add another interpolation instead of sin
     float marbleTexture(vec2 uv, float seed) {
         float noiseBase = perlin(uv * 3.0, seed, 10.0, 1.0);
@@ -90,6 +91,7 @@ export const blankCubeFSText = `
     }
 
     // Wood grain texture function
+    // Combining multiple octaves of Perlin noise
     float woodTexture(vec2 uv, float seed) {
         float noise = 0.0;
         float frequency = 1.0;

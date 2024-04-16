@@ -1,4 +1,4 @@
-import { Mat3, Mat4, Vec3, Vec4 } from "../lib/TSM.js";
+import { Mat3, Mat4, Vec2, Vec3, Vec4 } from "../lib/TSM.js";
 import Rand from "../lib/rand-seed/Rand.js"
 
 export class Chunk {
@@ -23,6 +23,10 @@ export class Chunk {
         this.cubes = size*size;     
         this.patchHeightMap = new Float32Array(size * size);   
         this.generateCubes(); 
+    }
+
+    public getValues(){
+        return new Vec4([this.x, this.y, this.size, this.cubes]);
     }
 
     // Helper function to create a noise array given a seed, size, maxHeight, and scaleFactor
@@ -275,6 +279,91 @@ export class Chunk {
         }
     }
     
+    // TODO: check logic/math
+    // Check if the player new position goes inside any cube
+    public lateralCheck(newPosition: Vec3, radius: number, maxHeightToCheck: number): boolean {
+        const topLeftX = this.x - this.size / 2;
+        const topLeftZ = this.y - this.size / 2;
+        const playerTopY = newPosition.y - maxHeightToCheck;
+
+        for (let offsetX = -1; offsetX <= 1; offsetX++) {
+            for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
+                const testPointX = (offsetX == 0) ? newPosition.x : Math.round(newPosition.x) - 0.5 + offsetX;
+                const testPointZ = (offsetZ == 0) ? newPosition.z : Math.round(newPosition.z) - 0.5 + offsetZ;
+
+                let testingPoint = new Vec2([testPointX, testPointZ]);
+                let newOffsetX = (offsetX == -1) ? 1 : 0;
+                let newOffsetZ = (offsetZ == -1) ? 1 : 0
+                testingPoint.add(new Vec2([newOffsetX, newOffsetZ]));
+
+                const dist = Vec2.distance(testingPoint, new Vec2([newPosition.x, newPosition.z]));
+
+                if (dist < radius) {
+                    const gridX = Math.round(testPointX - topLeftX) + offsetX;
+                    const gridZ = Math.round(testPointZ - topLeftZ) + offsetZ;
+
+                    if (gridX >= 0 && gridZ >= 0 && gridX < this.size && gridZ < this.size) {
+                        const idx = gridX * this.size + gridZ;
+                        const height = Math.floor(this.patchHeightMap[idx]);
+                        if (playerTopY < height) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // augment the Chunk class with logic for determining the minimum vertical position
+    // TODO: confirm if isAscending is helpful for something
+    // public minimumVerticalPosition(newPosition: Vec3, radius: number, maxHeightToCheck: number, isAscending: boolean): number{
+    public minimumVerticalPosition(newPosition: Vec3, maxHeightToCheck: number): number{
+        const topLeftX = this.x - this.size / 2;
+        const topLeftY = this.y - this.size / 2;
+        // Calculate adjusted positions relative to chunk coordinates
+        const adjustedX = Math.round(newPosition.x - topLeftX);
+        const adjustedY = Math.round(newPosition.z - topLeftY);
+        // Early boundary check to return quickly for out-of-bound coordinates
+        if (!(adjustedX >= 0 && adjustedY >= 0 && adjustedX < this.size && adjustedY < this.size)) {
+            return Number.MIN_SAFE_INTEGER;
+        }
+        const idx = adjustedX * this.size + adjustedY;
+        const baseY = newPosition.y - maxHeightToCheck;
+        const height = Math.floor(this.patchHeightMap[idx]);
+        if (baseY >= height) {
+            return Number.MIN_SAFE_INTEGER;
+        } else {
+            return height;
+        }
+        // TODO: Check for vertical collisions based on direction of movement?
+        // if (isAscending) {
+        //     return this.checkAscendingCollision(idx, baseY, maxHeightToCheck);
+        // } else {
+        //     return this.checkDescendingCollision(idx, topY, maxHeightToCheck);
+        // }
+    }
+
+    // private checkAscendingCollision(index: number, baseY: number, maxHeightToCheck: number): number {
+    //     for (let i = 0; i <= maxHeightToCheck; i++) {
+    //         const height = this.patchHeightMap[index];
+            
+    //         if (baseY + i + 1 < this.densityMap[index].length && this.densityMap[index][baseY + i + 1] >= 0) {
+    //             return baseY + i + 1 - Config.PLAYER_HEIGHT - 0.5;
+    //         }
+    //     }
+    //     return Number.MIN_SAFE_INTEGER;
+    // }
+    
+    // private checkDescendingCollision(index: number, topY: number, maxHeightToCheck: number): number {
+    //     for (let i = 0; i <= maxHeightToCheck; i++) {
+    //         if (topY - i < this.densityMap[index].length && this.densityMap[index][topY - i] >= 0) {
+    //             return topY - i + 0.5;
+    //         }
+    //     }
+    //     return Number.MIN_SAFE_INTEGER;
+    // }
+
     public cubePositions(): Float32Array {
         return this.cubePositionsF32;
     }
