@@ -19,6 +19,15 @@ export class MinecraftAnimation extends CanvasAnimation {
   private gui: GUI;
   
   chunk : Chunk;
+  // For rendering
+  stackOfChunks : Map<string, Chunk>;
+  //  Record<string, Chunk> = {};
+  // For caching
+  cacheHash : Map<string, Chunk>;
+  // hysteresis logic to chunk creation and destruction to fix this issue.
+  // the chosen number is 9 since the chunks are 1 + 8
+  // TODO: maybe put this in other part of the project as configuration item
+  cacheLimit: number;
   
   /*  Cube Rendering */
   private cubeGeometry: Cube;
@@ -48,6 +57,9 @@ export class MinecraftAnimation extends CanvasAnimation {
     
     // Generate initial landscape
     this.chunk = new Chunk(0.0, 0.0, 64);
+    this.stackOfChunks = new Map();
+    this.cacheHash  = new Map();
+    this.cacheLimit = 9;
     
     this.blankCubeRenderPass = new RenderPass(gl, blankCubeVSText, blankCubeFSText);
     this.cubeGeometry = new Cube();
@@ -130,7 +142,59 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.blankCubeRenderPass.setup();    
   }
 
+  public getChunk(key: string, stack: Map<string, Chunk>): Chunk | undefined {
+    return stack.get(key);
+  }
 
+  // TODO: confirm if it's correct
+  private generateChunks(): void {
+    const chunkSize = 64.0;
+    const offset = 32.0;
+    let centerX = Math.floor((this.playerPosition.x + offset) / chunkSize) * chunkSize;
+    let centerZ = Math.floor((this.playerPosition.z + offset) / chunkSize) * chunkSize;
+    let createNewChunks = new Map<string, Chunk>();
+    // going in all directions
+    for (let i = -1; i <= 1; i++) {
+        for (let j = -1; j <= 1; j++) {
+            let xCoord = centerX + chunkSize * i;
+            let zCoord = centerZ + chunkSize * j;
+            // TODO: confirm cache working
+            const key = `${Math.round(xCoord)} ${Math.round(zCoord)}`;
+            let currentChunk = this.stackOfChunks.get(key);
+            let cacheChunk = this.cacheHash.get(key);
+            if (currentChunk) {
+              createNewChunks.set(key, currentChunk);
+            // if is in already in cache
+            } else if (cacheChunk) {
+              createNewChunks.set(key, cacheChunk);
+            } else {
+              const newChunk = new Chunk(xCoord, zCoord, chunkSize);
+              createNewChunks.set(key, newChunk);
+            }
+            // TODO: confirm exclamation
+            // if the block is in the position 4 it means it is the center of the character
+            // therefore we assign accordingly
+            if (i == Math.floor(this.cacheLimit / 2)) {
+              this.chunk = this.getChunk(key, createNewChunks)!;
+            }
+        }
+    }
+
+    // TODO: fix these two cacas
+    // Clear cache if it exceeds the configured maximum size for hysteresis logic
+    if (Object.keys(this.cacheHash).length > this.cacheLimit) {
+      this.cacheHash.clear();
+    }
+    // Cache those chunks that exist in current but not in new chunks
+    // TODO: this can exceed the limit of cache (9 elements) after we assign more elements
+    // better the logic by popping one element if we find a new element, FIFO or LRU or whatever
+    this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
+      if (!(createNewChunks.get(key))) {
+          this.cacheHash.set(key, this.stackOfChunks.get(key)!);
+      }
+    });
+    this.stackOfChunks = createNewChunks;
+  }
 
   /**
    * Draws a single frame
@@ -141,7 +205,8 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.playerPosition.add(this.gui.walkDir());
     
     this.gui.getCamera().setPos(this.playerPosition);
-    
+    this.generateChunks();
+
     // Drawing
     const gl: WebGLRenderingContext = this.ctx;
     const bg: Vec4 = this.backgroundColor;
@@ -160,10 +225,28 @@ export class MinecraftAnimation extends CanvasAnimation {
     const gl: WebGLRenderingContext = this.ctx;
     gl.viewport(x, y, width, height);
 
-    //TODO: Render multiple chunks around the player, using Perlin noise shaders
-    this.blankCubeRenderPass.updateAttributeBuffer("aOffset", this.chunk.cubePositions());
-    this.blankCubeRenderPass.drawInstanced(this.chunk.numCubes());    
-
+    // Render multiple chunks around the player, using Perlin noise shaders
+    // the starter code passes an array of 4096 per-cube translation vectors in the 
+    // aOffset instanced vertex attribute buffer
+    // this.blankCubeRenderPass.updateAttributeBuffer("aOffset", this.chunk.cubePositions());
+    // this.blankCubeRenderPass.drawInstanced(this.chunk.numCubes());    
+    // Iterate over each chunk in the stack
+    // console.log("drawScene 1\n");
+    // for (const chunk of this.stackOfChunks.getChunks()) {
+    this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
+      // console.log("drawScene 2\n");
+      // console.log(key);
+      // console.log(chunk);
+      // console.log(this.stackOfChunks.get(key));
+      this.blankCubeRenderPass.updateAttributeBuffer('aOffset', chunk.cubePositions());
+      this.blankCubeRenderPass.drawInstanced(chunk.numCubes());
+    });
+    // for (const chunkKey of Object.keys(this.stackOfChunks)) {
+    //   console.log("drawScene 2\n");
+    //   const chunk = this.stackOfChunks[chunkKey];
+    //   this.blankCubeRenderPass.updateAttributeBuffer('aOffset', chunk.cubePositions());
+    //   this.blankCubeRenderPass.drawInstanced(chunk.numCubes());
+    // }
   }
 
   public getGUI(): GUI {

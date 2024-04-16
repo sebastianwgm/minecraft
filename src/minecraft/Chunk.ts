@@ -2,13 +2,13 @@ import { Mat3, Mat4, Vec3, Vec4 } from "../lib/TSM.js";
 import Rand from "../lib/rand-seed/Rand.js"
 
 export class Chunk {
-    private maxHeightOfField: number = 100; // maximum height for the range of frequencies heights
-    private heightsMapping: Float32Array;
     private cubes: number; // Number of cubes that should be *drawn* each frame
     private cubePositionsF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
     private x : number; // Center of the chunk
     private y : number;
     private size: number; // Number of cubes along each side of the chunk
+    private maxHeightOfField: number = 100; // maximum height for the range of frequencies heights
+    private patchHeightMap: Float32Array;
 
     // Define interpolation filters
     private topLeft = new Float32Array([9, 3, 3, 1]);
@@ -20,9 +20,9 @@ export class Chunk {
         this.x = centerX;
         this.y = centerY;
         this.size = size;
-        this.cubes = size*size;        
-        this.generateCubes();
-        this.heightsMapping = new Float32Array(this.cubes);
+        this.cubes = size*size;     
+        this.patchHeightMap = new Float32Array(size * size);   
+        this.generateCubes(); 
     }
 
     // Helper function to create a noise array given a seed, size, maxHeight, and scaleFactor
@@ -61,44 +61,42 @@ export class Chunk {
         return newMatrix;
     }
 
+    public computeNewValue(i: number, j: number, tLeftMat: Float32Array, tRightMat: Float32Array, bLeftMat: Float32Array, bRightMat: Float32Array, idx: number): number {
+        // Determine which matrix to use based on the parity of i and j   
+        if (i % 2 === 0 && j % 2 === 1)  {
+            return tRightMat[idx]; // Top-Right matrix for even i, odd j
+        } else if (i % 2 === 1 && j % 2 === 0) {
+            return bLeftMat[idx];  // Bottom-Left matrix for odd i, even j
+        } else if (i % 2 === 0 && j % 2 === 0) {
+            return tLeftMat[idx];  // Top-Left matrix for even i, even j
+        } else {
+            return bRightMat[idx]; // Bottom-Right matrix for odd i, odd j
+        }
+    }
+
     public upsampleOnce(cubePositionsF32: Float32Array): Float32Array {
         const oldD = Math.sqrt(cubePositionsF32.length);
         const targetDim = (oldD - 2) * 2 + 2;
-        let cubePositionsF32Updated = new Float32Array(targetDim * targetDim);
+        let newCubePositionsF32Updated = new Float32Array(targetDim * targetDim);
 
         // 2x2 convolution kernels to the former array
-        const tLeftMat = this.a2x2ConvolutionKernel(this.topLeft, cubePositionsF32);
-        const tRightMat = this.a2x2ConvolutionKernel(this.topRight, cubePositionsF32);
-        const bLeftMat = this.a2x2ConvolutionKernel(this.bottomLeft, cubePositionsF32);
-        const bRightMat = this.a2x2ConvolutionKernel(this.botoomRight, cubePositionsF32);
-        let dimention = Math.floor(bLeftMat.length);
+        const topLeftMatrix = this.a2x2ConvolutionKernel(this.topLeft, cubePositionsF32);
+        const topRightMatrix = this.a2x2ConvolutionKernel(this.topRight, cubePositionsF32);
+        const bottomLeftMatrix = this.a2x2ConvolutionKernel(this.bottomLeft, cubePositionsF32);
+        const bottomRightMatrix = this.a2x2ConvolutionKernel(this.botoomRight, cubePositionsF32);
+        let dimention = Math.sqrt(bottomLeftMatrix.length);
         // Construct the new upscaled matrix
+        // console.log("targetDim: ", targetDim);
+        // console.log("newCubePositionsF32Updated before: ", newCubePositionsF32Updated);
         for (let i = 0; i < targetDim; i++) {
             for (let j = 0; j < targetDim; j++) {
                 const idx = i * targetDim + j;
-                const subMatrixIdx = Math.floor(i / 2) * dimention + Math.floor(j / 2);         
-                cubePositionsF32Updated[idx] = this.computeNewValue(i, j, tLeftMat, tRightMat, bLeftMat, bRightMat, subMatrixIdx);
+                const subMatrixIdx = Math.floor(i / 2) * dimention + Math.floor(j / 2);       
+                newCubePositionsF32Updated[idx] = this.computeNewValue(i, j, topLeftMatrix, topRightMatrix, bottomLeftMatrix, bottomRightMatrix, subMatrixIdx);
             }
         }
-
-        return cubePositionsF32Updated;
-    }
-
-    public computeNewValue(i: number, j: number, tLeftMat: Float32Array, tRightMat: Float32Array, bLeftMat: Float32Array, bRightMat: Float32Array, idx: number): number {
-        // Determine which matrix to use based on the parity of i and j
-        if (i % 2 === 0) {
-            if (j % 2 === 0) {
-                return tLeftMat[idx];  // Top-Left matrix for even i, even j
-            } else {
-                return tRightMat[idx]; // Top-Right matrix for even i, odd j
-            }
-        } else {
-            if (j % 2 === 0) {
-                return bLeftMat[idx];  // Bottom-Left matrix for odd i, even j
-            } else {
-                return bRightMat[idx]; // Bottom-Right matrix for odd i, odd j
-            }
-        }
+        // console.log("newCubePositionsF32Updated after: ", newCubePositionsF32Updated);
+        return newCubePositionsF32Updated;
     }
     
     
@@ -143,10 +141,6 @@ export class Chunk {
         // Generate noise arrays from seeds
         let valueNoiseArrays = seeds.map(seed => this.createNoiseArray(seed, size, this.maxHeightOfField, coarseScale));
 
-        // TODO: confirm values for noiseArrays
-        // for (let value of valueNoiseArrays.values()) {
-        //     console.log(value);
-        // }
         // TODO: confirm values and math
         const stride = size + 2; // The stride length in the cube positions array which includes borders
         // Top (Copying the bottom row of the top noise array to the top row of the cube positions, excluding corners)
@@ -175,13 +169,16 @@ export class Chunk {
         cubePositionsF32TSyn[stride * (size + 1)] = valueNoiseArrays[5][size - 1]; // BottomLeft (first row, last column of BottomLeft noise array)
         cubePositionsF32TSyn[stride ** 2 - 1] = valueNoiseArrays[4][0]; // BottomRight (first element of BottomRight noise array)
         
+        // console.log("cubePositionsF32TSyn: ", cubePositionsF32TSyn);
         // Unsampling noise by bilinear interpolations, power of 2 grid
         // unsampling factor will be: log_2 of 8, 16, 32 = 3, 4, 5
         let factorToUnsample = Math.floor(Math.log2((this.size / size)));
         // TODO: confirm math
         // Perform upsampling using 2x2 kernels
         for (let i = 0; i < factorToUnsample; i++) {
+            // console.log("cubePositionsF32TSyn before: ", cubePositionsF32TSyn);
             cubePositionsF32TSyn = this.upsampleOnce(cubePositionsF32TSyn);
+            // console.log("cubePositionsF32TSyn after: ", cubePositionsF32TSyn);
         }
         
         let finalReturnedArray: Float32Array = new Float32Array(this.size * this.size);
@@ -195,7 +192,37 @@ export class Chunk {
 
         return finalReturnedArray;
     }
-    
+    private numberOfCubesToDraw(arr: Float32Array, i: number, j: number, height: number): number {
+        if (!(i !== 0 && j !== 0 && i !== this.size - 1 && j !== this.size - 1)) {
+            return height;
+        } else {
+            const size = this.size;
+            const idx = size * i + j;  // current index
+        
+            // Check boundaries and compute indices safely (just in case)
+            const indexUp = i > 0 ? size * (i - 1) + j : idx;
+            const indexDown = i < size - 1 ? size * (i + 1) + j : idx;
+            const indexLeft = j > 0 ? size * i + (j - 1) : idx;
+            const indexRight = j < size - 1 ? size * i + (j + 1) : idx;
+        
+            // Array of the current and neighboring heights
+            const heights = [
+                arr[idx],       // Current
+                arr[indexUp],     // Up
+                arr[indexDown],   // Down
+                arr[indexLeft],   // Left
+                arr[indexRight]   // Right
+            ];
+        
+            // Find the minimum height around the current cube
+            const minNeigh = Math.min(...heights);
+        
+            // Calculate the number of cubes drawn
+            return Math.floor(arr[idx] - minNeigh + 1);
+        }
+        
+    }
+
     private generateCubes() {
         const topleftx = this.x - this.size / 2;
         const toplefty = this.y - this.size / 2;
@@ -211,81 +238,45 @@ export class Chunk {
             let widthOfBlock: number = Math.floor((this.size) / (2 ** (i + 3)));
             let valuesNoise: Float32Array = this.terrainSynthesis(widthOfBlock, (octave + 3));
             // Add generated noise values to the heightMap, ensuring to be in the range 0-100
-            if (this.heightsMapping) {
-                this.heightsMapping = this.heightsMapping.map((currentHeight: number, idx: number) => {
-                    return Math.min(Math.max((currentHeight + valuesNoise[idx]), 0), 100); // Clamps the values between 0 and 100
-                });
-            }
+            this.patchHeightMap = this.patchHeightMap.map((currentHeight: number, idx: number) => {
+                // TODO: confirm maybe?
+                return Math.floor(Math.min(Math.max((currentHeight + valuesNoise[idx]), 0), 100)); // Clamps the values between 0 and 100
+            });
         }
 
-        // Suboptimal rendering
-        this.cubePositionsF32 = new Float32Array(this.cubes);
-        // this.cubes = totalCubes;
-        let pos = 0;
+        // console.log("patchHeightMap 1: ", this.patchHeightMap);
+        // TODO: maybe use 3D Perlin noise to generate true volumetric terrain, with cavern systems, 
+        // ore veins, and overhangs.
+        let numberOfCubes = 0;
         for (let i = 0; i < this.size; i++) {
             for (let j = 0; j < this.size; j++) {
                 const idx = this.size * i + j;
-                let height: number;
-                if (this.heightsMapping) {
-                    height = Math.floor(this.heightsMapping[idx]);
-                } else {
-                    height = 0;
-                }
-
-                for (let k = 0; k < height; k++) {
-                    // Only render if the cube is not air and does not have 6 blocks
-                    // covering it
-                    if (i !== 0 && j !== 0 && i !== this.size - 1 &&
-                        j !== this.size - 1 && k !== height - 1 && k !== 0) {
-                        // let shouldDraw = this.shouldDrawBasedOnDensity(i, j, k);
-                        if (true) {
-                        this.cubePositionsF32[4 * pos] = topleftx + i;
-                        this.cubePositionsF32[4 * pos + 1] = k;
-                        this.cubePositionsF32[4 * pos + 2] = toplefty + j;
-                        this.cubePositionsF32[4 * pos + 3] = 0;
-                        pos++;
-                        }
-                    }
-                    // Only draw if the cube is not air
-                    else {
-                        this.cubePositionsF32[4 * pos] = topleftx + i;
-                        this.cubePositionsF32[4 * pos + 1] = k;
-                        this.cubePositionsF32[4 * pos + 2] = toplefty + j;
-                        this.cubePositionsF32[4 * pos + 3] = 0;
-                        pos++;
-                    }
+                const height = Math.floor(this.patchHeightMap[idx]);
+                numberOfCubes += this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
+            }
+        }
+        // console.log("patchHeightMap 2: ", this.patchHeightMap);
+        // Pass the cubes to be drawn
+        this.cubes = numberOfCubes;
+        // console.log("total cubes: ", numberOfCubes);
+        // console.log("thiscubes: ", this.cubes);
+        this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
+        let position = 0;
+        for (let i = 0; i < this.size; i++) {
+            for (let j = 0; j < this.size; j++) {
+                const height = Math.floor(this.patchHeightMap[this.size * i + j]);
+                const numCubes = this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
+                for (let k = 0; k < numCubes; k++) {
+                    const baseIndex = 4 * position;
+                    this.cubePositionsF32[baseIndex] = topleftx + j;
+                    this.cubePositionsF32[baseIndex + 1] = height - k;
+                    this.cubePositionsF32[baseIndex + 2] = toplefty + i;
+                    this.cubePositionsF32[baseIndex + 3] = 0;
+                    position++;
                 }
             }
         }
-
-    //   this.cubePositionsF32 = new Float32Array(4 * this.cubes);
-    //   // const seed = "42";
-    //   let seed = `${this.x}" "${this.y}" "${this.size}`;
-    //   let rng = new Rand(seed);
-    //   for(let i=0; i<this.size; i++)
-    //   {
-    //       for(let j=0; j<this.size; j++)
-    //       {
-    //         const height = Math.floor(10.0 * rng.next());
-    //         const idx = this.size * i + j;
-    //         this.cubePositionsF32[4*idx + 0] = topleftx + j;
-    //         this.cubePositionsF32[4*idx + 1] = height;
-    //         this.cubePositionsF32[4*idx + 2] = toplefty + i;
-    //         this.cubePositionsF32[4*idx + 3] = 0;
-    //         // console.log("height \n", height);
-    //         // console.log("i \n", i);
-    //         // console.log("j \n", j);
-    //         // console.log("idx \n", idx);
-    //         // console.log("cubePositionsF32[4*idx + 0] \n", this.cubePositionsF32[4*idx + 0]);
-    //         // console.log("cubePositionsF32[4*idx + 1] \n", this.cubePositionsF32[4*idx + 1]);
-    //         // console.log("cubePositionsF32[4*idx + 2] \n", this.cubePositionsF32[4*idx + 2]);
-    //         // console.log("cubePositionsF32[4*idx + 3] \n", this.cubePositionsF32[4*idx + 3]);
-    //       }
-    //   }
-    
     }
-    
-    
     
     public cubePositions(): Float32Array {
         return this.cubePositionsF32;

@@ -41,6 +41,7 @@ export const blankCubeFSText = `
 	    dot_nl = clamp(dot_nl, 0.0, 1.0);
 	
         gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0), 1.0);
+        
     }
 `;
 //# sourceMappingURL=Shaders.js.map
