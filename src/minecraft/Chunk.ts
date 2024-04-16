@@ -255,11 +255,8 @@ export class Chunk {
                 numberOfCubes += this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
             }
         }
-        // console.log("patchHeightMap 2: ", this.patchHeightMap);
         // Pass the cubes to be drawn
         this.cubes = numberOfCubes;
-        // console.log("total cubes: ", numberOfCubes);
-        // console.log("thiscubes: ", this.cubes);
         this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
         let position = 0;
         for (let i = 0; i < this.size; i++) {

@@ -139,19 +139,9 @@ export class MinecraftAnimation extends CanvasAnimation {
         // console.log("drawScene 1\n");
         // for (const chunk of this.stackOfChunks.getChunks()) {
         this.stackOfChunks.forEach((chunk, key) => {
-            // console.log("drawScene 2\n");
-            // console.log(key);
-            // console.log(chunk);
-            // console.log(this.stackOfChunks.get(key));
             this.blankCubeRenderPass.updateAttributeBuffer('aOffset', chunk.cubePositions());
             this.blankCubeRenderPass.drawInstanced(chunk.numCubes());
         });
-        // for (const chunkKey of Object.keys(this.stackOfChunks)) {
-        //   console.log("drawScene 2\n");
-        //   const chunk = this.stackOfChunks[chunkKey];
-        //   this.blankCubeRenderPass.updateAttributeBuffer('aOffset', chunk.cubePositions());
-        //   this.blankCubeRenderPass.drawInstanced(chunk.numCubes());
-        // }
     }
     getGUI() {
         return this.gui;

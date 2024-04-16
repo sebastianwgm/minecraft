@@ -72,8 +72,8 @@ export class Chunk {
         const bottomRightMatrix = this.a2x2ConvolutionKernel(this.botoomRight, cubePositionsF32);
         let dimention = Math.sqrt(bottomLeftMatrix.length);
         // Construct the new upscaled matrix
-        console.log("targetDim: ", targetDim);
-        console.log("newCubePositionsF32Updated before: ", newCubePositionsF32Updated);
+        // console.log("targetDim: ", targetDim);
+        // console.log("newCubePositionsF32Updated before: ", newCubePositionsF32Updated);
         for (let i = 0; i < targetDim; i++) {
             for (let j = 0; j < targetDim; j++) {
                 const idx = i * targetDim + j;
@@ -81,7 +81,7 @@ export class Chunk {
                 newCubePositionsF32Updated[idx] = this.computeNewValue(i, j, topLeftMatrix, topRightMatrix, bottomLeftMatrix, bottomRightMatrix, subMatrixIdx);
             }
         }
-        console.log("newCubePositionsF32Updated after: ", newCubePositionsF32Updated);
+        // console.log("newCubePositionsF32Updated after: ", newCubePositionsF32Updated);
         return newCubePositionsF32Updated;
     }
     // Helper function for terrain synthesis
@@ -145,7 +145,7 @@ export class Chunk {
         cubePositionsF32TSyn[size + 1] = valueNoiseArrays[6][size * (size - 1)]; // TopRight (last row, first column of TopRight noise array)
         cubePositionsF32TSyn[stride * (size + 1)] = valueNoiseArrays[5][size - 1]; // BottomLeft (first row, last column of BottomLeft noise array)
         cubePositionsF32TSyn[Math.pow(stride, 2) - 1] = valueNoiseArrays[4][0]; // BottomRight (first element of BottomRight noise array)
-        console.log("cubePositionsF32TSyn: ", cubePositionsF32TSyn);
+        // console.log("cubePositionsF32TSyn: ", cubePositionsF32TSyn);
         // Unsampling noise by bilinear interpolations, power of 2 grid
         // unsampling factor will be: log_2 of 8, 16, 32 = 3, 4, 5
         let factorToUnsample = Math.floor(Math.log2((this.size / size)));
@@ -210,7 +210,7 @@ export class Chunk {
                 return Math.floor(Math.min(Math.max((currentHeight + valuesNoise[idx]), 0), 100)); // Clamps the values between 0 and 100
             });
         }
-        console.log("patchHeightMap 1: ", this.patchHeightMap);
+        // console.log("patchHeightMap 1: ", this.patchHeightMap);
         // TODO: maybe use 3D Perlin noise to generate true volumetric terrain, with cavern systems, 
         // ore veins, and overhangs.
         let numberOfCubes = 0;
@@ -221,11 +221,8 @@ export class Chunk {
                 numberOfCubes += this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
             }
         }
-        console.log("patchHeightMap 2: ", this.patchHeightMap);
         // Pass the cubes to be drawn
         this.cubes = numberOfCubes;
-        console.log("total cubes: ", numberOfCubes);
-        console.log("thiscubes: ", this.cubes);
         this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
         let position = 0;
         for (let i = 0; i < this.size; i++) {
