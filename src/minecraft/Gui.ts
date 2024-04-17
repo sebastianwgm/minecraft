@@ -3,7 +3,7 @@ import { CanvasAnimation } from "../lib/webglutils/CanvasAnimation.js";
 import { MinecraftAnimation } from "./App.js";
 import { Mat4, Vec3, Vec4, Vec2, Mat2, Quat } from "../lib/TSM.js";
 import { RenderPass } from "../lib/webglutils/RenderPass.js";
-
+import {night_light} from "./App.js";
 /**
  * Might be useful for designing any animation GUI
  */
@@ -183,6 +183,18 @@ export class GUI implements IGUI {
       }
       case "Space": {
         this.animation.jump();
+        break;
+      }
+      // I: we decrease the velocity of which the day/night changes when pressin L
+      case "KeyI": {
+        night_light.change_velocity = night_light.change_velocity + 15;
+        console.log("Decrease the velocity of day/nught, new value:", night_light.change_velocity);
+        break;
+      }
+      // L: we increase the velocity of which the day/night changes when pressin L
+      case "KeyL": {
+        night_light.change_velocity = Math.max(night_light.change_velocity - 15, 10);
+        console.log("Increase the velocity of day/nught, new value:", night_light.change_velocity);
         break;
       }
       default: {

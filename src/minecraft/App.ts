@@ -20,6 +20,10 @@ const radius = 0.4;
 const maxHeightToCheck = 2.0;
 const gravity = -9.8;
 
+export class night_light {
+  public static change_velocity : number = 240;
+}
+
 export class MinecraftAnimation extends CanvasAnimation {
   private gui: GUI;
   
@@ -272,13 +276,6 @@ export class MinecraftAnimation extends CanvasAnimation {
     if (exit) {
       this.playerPosition = newPosition.copy();
     }
-      // if (this.isNewPositionSafe(newPosition, possibles)) {
-      //     this.playerPosition = newPosition;
-      // } else {
-      //     // the new position is not valid
-      //     this.playerPosition.x = Math.round(this.playerPosition.x);
-      //     this.playerPosition.z = Math.round(this.playerPosition.z);
-      // }
 
     newPosition = new Vec3(this.playerPosition.xyz);
     let velocity: Vec3 = this.calculateCurrentVelocity();
@@ -297,8 +294,8 @@ export class MinecraftAnimation extends CanvasAnimation {
     }
     
     this.gui.getCamera().setPos(this.playerPosition);
-    // this.timeForFrames = Date.now(); // Update the last frame time
-
+    this.timeForGravity = Date.now();
+    this.updateLightAndBackground();
     // Drawing
     const gl: WebGLRenderingContext = this.ctx;
     const bg: Vec4 = this.backgroundColor;
@@ -373,6 +370,43 @@ export class MinecraftAnimation extends CanvasAnimation {
         this.speed = new Vec3([0.0, 10.0, 0.0]);
       }
   }
+
+  public interpolate(color1: Vec4, color2: Vec4, factor: number): Vec4 {
+    return new Vec4([
+        color1.x + (color2.x - color1.x) * factor,
+        color1.y + (color2.y - color1.y) * factor,
+        color1.z + (color2.z - color1.z) * factor,
+        color1.w
+    ]);
+  }
+
+  public updateLightAndBackground(): void {
+    // x and z coordinates of the player center
+    const centerWorld = new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);
+    // 
+    const cycleTime = (Date.now() / (night_light.change_velocity * 1000 / 60)) % (2 * Math.PI);
+    const sin = Math.sin(cycleTime);
+    const cos = Math.cos(cycleTime);
+    const amplitude = 1000.0; // Define amplitude for the elliptical path
+
+    const curveVector = new Vec4([
+        amplitude * sin,   // X coordinate
+        amplitude * cos,   // Y coordinate (altitude changes simulate day/night)
+        amplitude * sin,   // Z coordinate
+        1.0                 // Homogeneous coordinate for transformations
+    ]);
+
+    this.lightPosition = Vec4.sum(centerWorld, curveVector);
+    
+    const normalizedAltitude = (this.lightPosition.y + amplitude) / (2 * amplitude); // Normalize Y to [0, 1]
+    const clampedHeightPercent = Math.max(Math.min(normalizedAltitude, 1.0), 0.0); // Clamp between [0, 1]
+    let nightColor = new Vec4([19.0 / 256.0, 24.0 / 256.0, 98.0 / 256.0, 1.0 ]);
+    let dayColor = new Vec4([130.0 / 256.0, 202.0 / 256.0, 255.0 / 256.0, 1.0 ]);
+    this.backgroundColor = this.interpolate(nightColor, dayColor, clampedHeightPercent);
+    this.backgroundColor.w = 1.0; // Ensure fully opaque color
+  }
+
+  
 
 }
 

@@ -14,6 +14,7 @@ Extra Credit (20 pts): 3D Perlin noise to generate true volumetric terrain:
 To draw the cubes we implemented 3D perlin noise with density to choose which cubes
 are gonna be drawn, this allowed to get the volumetric terrain.
 TODO: complete
+We use the OpenGL to generate the random numbers for 3D perlin noise.
 
 Procedural Textures (40 pts):
 We implemented perlin noise following the lectures and by using the functions provided
@@ -25,8 +26,9 @@ in the milestone instructions. We implemented the following textures:
 
 Extra Credit (10 pts): Implement time-varying Perlin noise
 We introduce a time variable through renderpass and we apply the time-varying
-perlin noise for each of the three textures, we updated the function unit_vec
-to include the time.
+perlin noise for two of the three textures, we updated the function unit_vec
+to include the time. We decided to include one texture without time-varying to
+make the terrain more "friendly".
 
 FPS controls:
 We followed the instructions provided by the professor:
@@ -39,3 +41,7 @@ Extra Credit (5 pts): Add some hysteresis logic to chunk creation and destructio
 We introduce a hashamp map (this.cacheHash) to cache the chunks we calculate, the maximum size of this cache is 9 which represents the 9 chunks for a player position.
 We cleanup the cache following hysteresis logic which is in the function cleanupCaches() in App.ts.
 
+Extra Credit (5 pts): Implement a day-night cycle
+We implemented day-night cycle, the keys to control the velocity for which it changes are:
+I: we decrease the velocity of which the day/night changes when pressin L
+L: we increase the velocity of which the day/night changes when pressin L

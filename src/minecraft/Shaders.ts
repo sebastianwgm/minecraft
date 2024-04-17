@@ -97,7 +97,7 @@ export const blankCubeFSText = `
         float smoothy = smoothmix(u, v, uvFract.x - grid.x);
         float smoothz = smoothmix(smoothx, smoothy, uvFract.y - grid.y);
 
-        return abs(smoothz) + 0.5;
+        return smoothz + 0.5;
     }
 
     // varying perling texture
@@ -173,14 +173,14 @@ export const blankCubeFSText = `
         vec3 ka = vec3(0.5, 0.5, 0.5);
         float seed = 10.0;
         // float noise = perlin(uv, seed, 0.5);
-        // float marble = marbleTexture(uv, seed);
+        float marble = marbleTexture(uv, seed);
         // float wood = woodTexture(uv, seed);
         // float stripes = otherTextureForMix(uv, seed);
         // float mixed = noise * 0.5 + stripes * 0.25 + wood * 0.25;
         // TimeVarying for everything
         float timeVarying = tymeVaryingPerlinTexture(uv, seed);
         float noise = timeVaryingPerlin(uv, seed, 0.5);
-        float marble = marbleTextureVarying(uv, seed);
+        // float marble = marbleTextureVarying(uv, seed);
         float wood = woodTextureVarying(uv, seed);
         float stripes = otherTextureForMixVarying(uv, seed);
         float mixed = noise * 0.5 + stripes * 0.25 + wood * 0.25;
