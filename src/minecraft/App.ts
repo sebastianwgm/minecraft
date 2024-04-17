@@ -30,7 +30,6 @@ export class MinecraftAnimation extends CanvasAnimation {
   chunk : Chunk;
   // For rendering
   stackOfChunks : Map<string, Chunk>;
-  //  Record<string, Chunk> = {};
   // For caching
   cacheHash : Map<string, Chunk>;
   // hysteresis logic to chunk creation and destruction to fix this issue.
@@ -97,7 +96,6 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.playerPosition = this.gui.getCamera().pos();
       
   }
-  
   
   /**
    * Sets up the blank cube drawing
@@ -180,7 +178,7 @@ export class MinecraftAnimation extends CanvasAnimation {
             let cacheChunk = this.cacheHash.get(key);
             if (currentChunk) {
               createNewChunks.set(key, currentChunk);
-            // // if is in already in cache
+            // if is in already in cache
             } else if (cacheChunk) {
               createNewChunks.set(key, cacheChunk);
             } else {
@@ -225,10 +223,8 @@ export class MinecraftAnimation extends CanvasAnimation {
     
     // Logic for a rudimentary walking simulator. Check for collisions and reject attempts to walk into a cube. 
     // Handle gravity, jumping, and loading of new chunks when necessary.
-    // this.playerPosition.add(this.gui.walkDir());
     let newPosition : Vec3 = new Vec3(this.playerPosition.xyz);
     // add new position considering walkDir
-    // let possibles: Chunk[] = this.getPossibleBlocks(this.playerPosition);
     let possibles: Chunk[] = []; // Start with the current chunk
     possibles.push(this.chunk);
     const values: Vec4 = this.chunk.getValues();
@@ -259,7 +255,6 @@ export class MinecraftAnimation extends CanvasAnimation {
       possibles.push(this.stackOfChunks.get(keyNearZBoundary1)!);
       possibles.push(this.stackOfChunks.get(keyNearZBoundary2)!);
     }
-    
     // predict new position in world
     newPosition.add(this.gui.walkDir());
     // check if the position is free of collisions
@@ -294,7 +289,6 @@ export class MinecraftAnimation extends CanvasAnimation {
     }
     
     this.gui.getCamera().setPos(this.playerPosition);
-    this.timeForGravity = Date.now();
     this.updateLightAndBackground();
     // Drawing
     const gl: WebGLRenderingContext = this.ctx;
@@ -316,11 +310,8 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     // Render multiple chunks around the player, using Perlin noise shaders
     // the starter code passes an array of 4096 per-cube translation vectors in the 
-    // aOffset instanced vertex attribute buffer
-    // this.blankCubeRenderPass.updateAttributeBuffer("aOffset", this.chunk.cubePositions());
-    // this.blankCubeRenderPass.drawInstanced(this.chunk.numCubes());    
+    // aOffset instanced vertex attribute buffer 
     // Iterate over each chunk in the stack
-    // console.log("drawScene 1\n");
     this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
       this.blankCubeRenderPass.updateAttributeBuffer('aOffset', chunk.cubePositions());
       this.blankCubeRenderPass.drawInstanced(chunk.numCubes());

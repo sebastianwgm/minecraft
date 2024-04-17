@@ -104,8 +104,6 @@ export class Chunk {
         const bottomRightMatrix = this.a2x2ConvolutionKernel(this.botoomRight, cubePositionsF32);
         let dimention = Math.sqrt(bottomLeftMatrix.length);
         // Construct the new upscaled matrix
-        // console.log("targetDim: ", targetDim);
-        // console.log("newCubePositionsF32Updated before: ", newCubePositionsF32Updated);
         for (let i = 0; i < targetDim; i++) {
             for (let j = 0; j < targetDim; j++) {
                 const idx = i * targetDim + j;
@@ -113,7 +111,6 @@ export class Chunk {
                 newCubePositionsF32Updated[idx] = this.computeNewValue(i, j, topLeftMatrix, topRightMatrix, bottomLeftMatrix, bottomRightMatrix, subMatrixIdx);
             }
         }
-        // console.log("newCubePositionsF32Updated after: ", newCubePositionsF32Updated);
         return newCubePositionsF32Updated;
     }
     
@@ -159,7 +156,6 @@ export class Chunk {
         // Generate noise arrays from seeds
         let valueNoiseArrays = seeds.map(seed => this.createNoiseArray(seed, size, this.maxHeightOfField, coarseScale));
 
-        // TODO: confirm values and math
         const stride = size + 2; // The stride length in the cube positions array which includes borders
         // Top (Copying the bottom row of the top noise array to the top row of the cube positions, excluding corners)
         for (let i = 0; i < size; i++) {
@@ -187,15 +183,12 @@ export class Chunk {
         cubePositionsF32TSyn[stride * (size + 1)] = valueNoiseArrays[5][size - 1]; // BottomLeft (first row, last column of BottomLeft noise array)
         cubePositionsF32TSyn[stride ** 2 - 1] = valueNoiseArrays[4][0]; // BottomRight (first element of BottomRight noise array)
         
-        // console.log("cubePositionsF32TSyn: ", cubePositionsF32TSyn);
         // Unsampling noise by bilinear interpolations, power of 2 grid
         // unsampling factor will be: log_2 of 8, 16, 32 = 3, 4, 5
         let factorToUnsample = Math.floor(Math.log2((this.size / size)));
         // Perform upsampling using 2x2 kernels
         for (let i = 0; i < factorToUnsample; i++) {
-            // console.log("cubePositionsF32TSyn before: ", cubePositionsF32TSyn);
             cubePositionsF32TSyn = this.upsampleOnce(cubePositionsF32TSyn);
-            // console.log("cubePositionsF32TSyn after: ", cubePositionsF32TSyn);
         }
         
         let finalReturnedArray: Float32Array = new Float32Array(this.size * this.size);
@@ -210,15 +203,8 @@ export class Chunk {
         return finalReturnedArray;
     }
     private numberOfCubesToDraw(arr: Float32Array, i: number, j: number, height: number): number {
-        // TODO: fix 
-        // if (i == 0 || j == 0 || i == (this.size-1) || j== (this.size-1)) {
-        //     // It def is a border, so we draw all required cubes here
-        //     return height;
-        // }
         let numCubes = 0;
         const idx = this.size * i + j;
-        // const idxPrevRow = idx - this.size; // this.size * (i-1) + j;
-        // const idxNextRow = idx + this.size; // this.size * (i+1) + j;
         for (let k = 0; k < height; k++) {
             if (this.drawAtK(i, j, k, height)) {
                 numCubes++;
@@ -263,30 +249,25 @@ export class Chunk {
             let valuesNoise: Float32Array = this.terrainSynthesis(widthOfBlock, (octave + 3));
             // Add generated noise values to the heightMap, ensuring to be in the range 0-100
             this.patchHeightMap = this.patchHeightMap.map((currentHeight: number, idx: number) => {
-                // TODO: confirm maybe?
                 return Math.floor(Math.min(Math.max((currentHeight + valuesNoise[idx]), 0), 100)); // Clamps the values between 0 and 100
             });
         }
 
-        // console.log("patchHeightMap 1: ", this.patchHeightMap);
-        // TODO: maybe use 3D Perlin noise to generate true volumetric terrain, with cavern systems, 
-        // ore veins, and overhangs.
         this.opacities = {};
         for (let i = 0; i < this.size; i++) {
             for (let j = 0; j < this.size; j++) {
                 const idx = this.size * i + j;
-                const height = this.patchHeightMap[idx]; // TODO: Do we need floor here?
+                const height = this.patchHeightMap[idx]; 
                 this.opacities[idx] = new Float32Array(height);
                 let maxHeight = 0;
                 for (let k=0; k < height; k++) {
                     // 3D Perlin noise
                     if (perlin3D) {
-                        this.opacities[idx][k] = this.perlin3DNoise(i,j,k, topleftx, toplefty);// + 0.8 * ((40 - k) / 100); TODO: do we need the bias?
+                        this.opacities[idx][k] = this.perlin3DNoise(i,j,k, topleftx, toplefty);
                     }
                     else {
                         this.opacities[idx][k] = 1;
                     }
-                    // numberOfCubes += this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
                     if (this.opacities[idx][k] > 0) {
                         maxHeight = k+1;
                     }
@@ -299,11 +280,10 @@ export class Chunk {
         for (let i = 0; i < this.size; i++) {
             for (let j = 0; j < this.size; j++) {
                 const idx = this.size * i + j;
-                const height = this.patchHeightMap[idx]; // TODO: Do we need floor here?
+                const height = this.patchHeightMap[idx]; 
                 numberOfCubes += this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
             }
         }
-
 
         // Pass the cubes to be drawn
         this.cubes = numberOfCubes;
@@ -317,7 +297,7 @@ export class Chunk {
                     if (this.drawAtK(i, j, k, height)) {
                         const baseIndex = 4 * position;
                         this.cubePositionsF32[baseIndex] = topleftx + i;
-                        this.cubePositionsF32[baseIndex + 1] = k; // TODO: Check if this should be k or height-k.
+                        this.cubePositionsF32[baseIndex + 1] = k; 
                         this.cubePositionsF32[baseIndex + 2] = toplefty + j;
                         this.cubePositionsF32[baseIndex + 3] = 0;
                         position++;
@@ -347,17 +327,12 @@ export class Chunk {
     private random(xyz: Vec3, seed: number): number {
         let temp = (Math.sin(Vec3.dot(Vec3.sum(xyz, new Vec3([seed, seed, seed])), new Vec3([12.9898, 78.233, 54.53]))) * 43758.5453);
         return Math.abs(temp) - Math.floor(Math.abs(temp));
-
-        // let newSeed = `${xyz.x} ${xyz.y} ${xyz.z} ${seed}`;
-        // let rng = new Rand(newSeed);
-        // return rng.next();
     }
 
     // Similar to perlin() in shader, but essentially in 3d, mainly need to change unit_vec_3d to account for
     // points on a unit sphere instead of a unit circle
     private perlin3DNoise(i: number, j: number, k: number, topLeftx: number, topLefty: number) {
         let grid_spacing: number = 2.0;
-        // let uvw = new Vec3([i, j, k]);
         let uvFrac = new Vec3([(topLeftx+i)/grid_spacing, (topLefty+j)/grid_spacing, k/grid_spacing]);
         let grid = new Vec3([Math.floor(uvFrac.x), Math.floor(uvFrac.y), Math.floor(uvFrac.z)]);
         
@@ -387,11 +362,10 @@ export class Chunk {
 
         let smoothz = this.smoothmix(smooth1y, smooth2y, varZ);
 
-        return smoothz + 0.5; //TODO: Check if abs is needed.
+        return smoothz + 0.5; 
 
     }
     
-    // TODO: check logic/math
     // Check if the player new position goes inside any cube
     public lateralCheck(newPosition: Vec3, radius: number, maxHeightToCheck: number): boolean {
         const topLeftX = this.x - this.size / 2;
@@ -411,9 +385,9 @@ export class Chunk {
                     const gridZ = Math.round(newPosition.z - topLeftZ) + offsetZ;
                     if (gridX >= 0 && gridZ >= 0 && gridX < this.size && gridZ < this.size) {
                         const idx = gridX * this.size + gridZ;
-                        const height = this.patchHeightMap[idx];
+                        const height = this.opacities[idx].length;
                         for (let k = 0; k <= 2.0; k ++){
-                            if (playerTopY - k < height) {
+                            if (playerTopY - k < height && this.opacities[idx][playerTopY-k] >= 0) {
                                 return true;
                             }
                         }
@@ -426,8 +400,6 @@ export class Chunk {
     }
 
     // augment the Chunk class with logic for determining the minimum vertical position
-    // TODO: confirm if isAscending is helpful for something
-    // public minimumVerticalPosition(newPosition: Vec3, radius: number, maxHeightToCheck: number, isAscending: boolean): number{
     public minimumVerticalPosition(newPosition: Vec3, maxHeightToCheck: number, isAscending: boolean): number{
         const topLeftX = this.x - this.size / 2;
         const topLeftY = this.y - this.size / 2;
@@ -441,17 +413,16 @@ export class Chunk {
         const idx = adjustedX * this.size + adjustedY;
         const baseY = Math.round(newPosition.y - maxHeightToCheck);
         const topY = Math.round(newPosition.y);
-        // const height = Math.floor(this.patchHeightMap[idx]);
-        const height = this.patchHeightMap[idx];
+        const height = this.opacities[idx].length;
         if (isAscending) {
             for (let i = 0; i <= 2.0; i++) {
-                if (baseY + i + 1 < height && this.patchHeightMap[idx + baseY + i + 1] >= 0) {
-                    return baseY + i - 2.0 - 0.5;
+                if (baseY + i + 1 < height) {
+                    return baseY + i - 2.5;
                 }
             }
         } else {
             for (let i = 0; i <= 2.0; i++) {
-                if (topY - i < height && this.patchHeightMap[idx + topY - i] >= 0) {
+                if (topY - i < height) {
                     return topY - i + 0.5;
                 }
             }

@@ -73,7 +73,6 @@ export const blankCubeFSText = `
     }
     
     // time varying perlin noise
-
     vec2 unit_vec_with_perlin_time(in vec2 xy, in float seed) {
         float theta = perlinTime + 6.28318530718 * random(xy, seed);
         return vec2(cos(theta), sin(theta));
