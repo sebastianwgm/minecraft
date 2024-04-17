@@ -200,7 +200,7 @@ export const blankCubeFSText = `
             vec3 textureColor = vec3(180.0, 87.0, 15.0) / 256.0;
             vec3 varyingTexture = textureColor * timeVarying;
             gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* varyingTexture, 1.0);
-        } else if (wsPos.y < 45.0) {
+        } else if (wsPos.y < 35.5) {
             vec3 color = vec3(144.0 / 256.0, 238.0 / 256.0, 144.0 / 256.0);
             vec3 marbleTexture = color * marble;
             gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* marbleTexture, 1.0);

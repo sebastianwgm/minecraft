@@ -17,7 +17,6 @@ import { Chunk } from "./Chunk.js";
 
 const sizeOfTerrain = 64.0;
 const radius = 0.4;
-// TODO: confirm if better
 const maxHeightToCheck = 2.0;
 const gravity = -9.8;
 
@@ -32,7 +31,6 @@ export class MinecraftAnimation extends CanvasAnimation {
   cacheHash : Map<string, Chunk>;
   // hysteresis logic to chunk creation and destruction to fix this issue.
   // the chosen number is 9 since the chunks are 1 + 8
-  // TODO: maybe put this in other part of the project as configuration item
   cacheLimit: number;
   
   // extras
@@ -162,7 +160,6 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.blankCubeRenderPass.setup();    
   }
 
-  // TODO: confirm if it's correct
   private generateChunks(): void {
     const chunkSize = 64.0;
     const offset = 32.0;
@@ -174,7 +171,6 @@ export class MinecraftAnimation extends CanvasAnimation {
         for (let j = -1; j <= 1; j++) {
             let xCoord = centerX + chunkSize * i;
             let zCoord = centerZ + chunkSize * j;
-            // TODO: confirm cache working
             const key = `${Math.round(xCoord)} ${Math.round(zCoord)}`;
             let currentChunk = this.stackOfChunks.get(key);
             let cacheChunk = this.cacheHash.get(key);
@@ -212,12 +208,6 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     // Perform removal outside the forEach to avoid concurrent modification issues
     keysToRemove.forEach(key => this.cacheHash.delete(key));
-
-    // Ensure the cache does not exceed the set limit
-    // if (this.cacheHash.size > this.cacheLimit) {
-    //     const excess = this.cacheHash.size - this.cacheLimit;
-    //     Array.from(this.cacheHash.keys()).slice(0, excess).forEach(key => this.cacheHash.delete(key));
-    // }
   }
 
   /**
@@ -229,22 +219,30 @@ export class MinecraftAnimation extends CanvasAnimation {
     // Generating the chunks according to the position
     this.generateChunks();
     
-    //TODO: Logic for a rudimentary walking simulator. Check for collisions and reject attempts to walk into a cube. 
+    // Logic for a rudimentary walking simulator. Check for collisions and reject attempts to walk into a cube. 
     // Handle gravity, jumping, and loading of new chunks when necessary.
     // this.playerPosition.add(this.gui.walkDir());
     let newPosition : Vec3 = new Vec3(this.playerPosition.xyz);
     // add new position considering walkDir
     // let possibles: Chunk[] = this.getPossibleBlocks(this.playerPosition);
-    let possibles: Chunk[] = [this.chunk]; // Start with the current chunk
+    let possibles: Chunk[] = []; // Start with the current chunk
+    possibles.push(this.chunk);
     const values: Vec4 = this.chunk.getValues();
     const center = new Vec3([values.x, 0, values.y]);
-    // TODO: confirm math
-    const xDiff = Math.abs(this.playerPosition.x - center.x) % sizeOfTerrain;
-    const zDiff = Math.abs(this.playerPosition.z - center.z) % sizeOfTerrain;
-
-    const nearXBoundary = xDiff <= 2.0 || xDiff >= sizeOfTerrain - 2.0;
-    const nearZBoundary = zDiff <= 2.0 || zDiff >= sizeOfTerrain - 2.0;
-
+    const xDiff = Math.abs(Math.abs(this.playerPosition.x) % sizeOfTerrain - sizeOfTerrain / 2);
+    const zDiff = Math.abs(Math.abs(this.playerPosition.z) % sizeOfTerrain - sizeOfTerrain / 2);
+    const nearXBoundary = xDiff <= 2.0;
+    const nearZBoundary = zDiff <= 2.0;
+    if (nearXBoundary && nearZBoundary) {
+      const keyNearXandZBoundaries1 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z + sizeOfTerrain)}`;
+      const keyNearXandZBoundaries2 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z + sizeOfTerrain)}`;
+      const keyNearXandZBoundaries3 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z - sizeOfTerrain)}`;
+      const keyNearXandZBoundaries4 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z - sizeOfTerrain)}`;
+      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries1)!);
+      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries2)!);
+      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries3)!);
+      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries4)!);
+    }
     if (nearXBoundary) {
       const keyNearXBoundary1 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z)}`;
       const keyNearXBoundary2 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z)}`;
@@ -257,28 +255,30 @@ export class MinecraftAnimation extends CanvasAnimation {
       possibles.push(this.stackOfChunks.get(keyNearZBoundary1)!);
       possibles.push(this.stackOfChunks.get(keyNearZBoundary2)!);
     }
-    if (nearXBoundary && nearZBoundary) {
-      const keyNearXandZBoundaries1 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z + sizeOfTerrain)}`;
-      const keyNearXandZBoundaries2 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z + sizeOfTerrain)}`;
-      const keyNearXandZBoundaries3 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z - sizeOfTerrain)}`;
-      const keyNearXandZBoundaries4 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z - sizeOfTerrain)}`;
-      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries1)!);
-      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries2)!);
-      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries3)!);
-      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries4)!);
-    }
-
+    
+    // predict new position in world
     newPosition.add(this.gui.walkDir());
-    // if the player has moved
-    if (!newPosition.equals(this.playerPosition)) {
-      if (this.isNewPositionSafe(newPosition, possibles)) {
-          this.playerPosition = newPosition;
-      } else {
-          // the new position is not valid
-          this.playerPosition.x = Math.round(this.playerPosition.x);
-          this.playerPosition.z = Math.round(this.playerPosition.z);
+    // check if the position is free of collisions
+    let exit : boolean = true;
+    for (let chunk of possibles) {
+      if (chunk.lateralCheck(newPosition.copy(), radius, maxHeightToCheck)) {
+        exit = false;
+        this.playerPosition.x = Math.round(this.playerPosition.x);
+        this.playerPosition.z = Math.round(this.playerPosition.z);
+        break;
       }
     }
+    // if free of collisions, we move the player
+    if (exit) {
+      this.playerPosition = newPosition.copy();
+    }
+      // if (this.isNewPositionSafe(newPosition, possibles)) {
+      //     this.playerPosition = newPosition;
+      // } else {
+      //     // the new position is not valid
+      //     this.playerPosition.x = Math.round(this.playerPosition.x);
+      //     this.playerPosition.z = Math.round(this.playerPosition.z);
+      // }
 
     newPosition = new Vec3(this.playerPosition.xyz);
     let velocity: Vec3 = this.calculateCurrentVelocity();
@@ -331,7 +331,6 @@ export class MinecraftAnimation extends CanvasAnimation {
   }
 
   private isNewPositionSafe(position: Vec3, chunks: Chunk[]): boolean {
-    // for (let i = 0; i < chunks.length; i++) {
     for (let chunk of chunks) {
       if (chunk.lateralCheck(position, radius, maxHeightToCheck)) {
         return false;
@@ -369,7 +368,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   
   
   public jump() {
-      //TODO: If the player is not already in the lair, launch them upwards at 10 units/sec.
+      // If the player is not already in the lair, launch them upwards at 10 units/sec.
       if (this.isPlayerOnGround) {
         this.speed = new Vec3([0.0, 10.0, 0.0]);
       }

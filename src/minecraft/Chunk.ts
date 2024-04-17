@@ -177,7 +177,6 @@ export class Chunk {
         // Unsampling noise by bilinear interpolations, power of 2 grid
         // unsampling factor will be: log_2 of 8, 16, 32 = 3, 4, 5
         let factorToUnsample = Math.floor(Math.log2((this.size / size)));
-        // TODO: confirm math
         // Perform upsampling using 2x2 kernels
         for (let i = 0; i < factorToUnsample; i++) {
             // console.log("cubePositionsF32TSyn before: ", cubePositionsF32TSyn);
@@ -232,7 +231,6 @@ export class Chunk {
         const topleftx = this.x - this.size / 2;
         const toplefty = this.y - this.size / 2;
         
-        // TODO: The real landscape-generation logic. 
         // The example code below shows you how to use the pseudorandom number generator to create a few cubes.
         this.cubes = this.size * this.size;
 
@@ -285,30 +283,28 @@ export class Chunk {
     public lateralCheck(newPosition: Vec3, radius: number, maxHeightToCheck: number): boolean {
         const topLeftX = this.x - this.size / 2;
         const topLeftZ = this.y - this.size / 2;
-        const playerTopY = newPosition.y - maxHeightToCheck;
-
+        const playerTopY = Math.round(newPosition.y);
         for (let offsetX = -1; offsetX <= 1; offsetX++) {
             for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
                 const testPointX = (offsetX == 0) ? newPosition.x : Math.round(newPosition.x) - 0.5 + offsetX;
                 const testPointZ = (offsetZ == 0) ? newPosition.z : Math.round(newPosition.z) - 0.5 + offsetZ;
-
                 let testingPoint = new Vec2([testPointX, testPointZ]);
                 let newOffsetX = (offsetX == -1) ? 1 : 0;
-                let newOffsetZ = (offsetZ == -1) ? 1 : 0
+                let newOffsetZ = (offsetZ == -1) ? 1 : 0;
                 testingPoint.add(new Vec2([newOffsetX, newOffsetZ]));
-
                 const dist = Vec2.distance(testingPoint, new Vec2([newPosition.x, newPosition.z]));
-
                 if (dist < radius) {
-                    const gridX = Math.round(testPointX - topLeftX) + offsetX;
-                    const gridZ = Math.round(testPointZ - topLeftZ) + offsetZ;
-
+                    const gridX = Math.round(newPosition.x - topLeftX) + offsetX;
+                    const gridZ = Math.round(newPosition.z - topLeftZ) + offsetZ;
                     if (gridX >= 0 && gridZ >= 0 && gridX < this.size && gridZ < this.size) {
                         const idx = gridX * this.size + gridZ;
-                        const height = Math.floor(this.patchHeightMap[idx]);
-                        if (playerTopY < height) {
-                            return true;
+                        const height = this.patchHeightMap[idx];
+                        for (let k = 0; k <= 2.0; k ++){
+                            if (playerTopY - k < height) {
+                                return true;
+                            }
                         }
+                        
                     }
                 }
             }

@@ -1,0 +1,41 @@
+Sebastian Gaete (swg523) and Lamha Goel (lg36694)
+Terrain Synthesis (60 pts):
+We used 4 octaves and we clamp the heights to be in the range [0, 100]
+Then we used as starting seed `${this.x} ${this.y} ${size}`, where we 
+choose a new grid size for which we are going from 8x8 (64) to 10x10 (100), 
+from 4x4 to 6x6, from 2x2 to 4x4. Then we filled the corresponding parts of 
+the array with value noise following the starting code.
+For the other eight chunks (neighbors) we generate noises to fill padded parts.
+We followed unsampling noise by bilinear interpolations, power of 2 grid unsampling 
+factor will be: log_2 of 8, 16, 32 = 3, 4, 5 for example and we applied 2x2 
+convolution kernels to update the positions of the newCubePositionsF32.
+
+Extra Credit (20 pts): 3D Perlin noise to generate true volumetric terrain:
+To draw the cubes we implemented 3D perlin noise with density to choose which cubes
+are gonna be drawn, this allowed to get the volumetric terrain.
+TODO: complete
+
+Procedural Textures (40 pts):
+We implemented perlin noise following the lectures and by using the functions provided
+in the milestone instructions. We implemented the following textures:
+- Stripes using just sin(u + v)
+- Stripes by using sin(sqrt((u - 0.5)^2+(v - 0.5)^2))
+- A noisy texture by using 4 octaves and updating the noise value for each one
+- A mixed between the three previous ones
+
+Extra Credit (10 pts): Implement time-varying Perlin noise
+We introduce a time variable through renderpass and we apply the time-varying
+perlin noise for each of the three textures, we updated the function unit_vec
+to include the time.
+
+FPS controls:
+We followed the instructions provided by the professor:
+1. Predict the player's new position in the world
+2. Check that this position is free of collisions
+3. If so, move the player
+Radius = 0.4 and player height = 2.0
+
+Extra Credit (5 pts): Add some hysteresis logic to chunk creation and destruction to fix this issue.
+We introduce a hashamp map (this.cacheHash) to cache the chunks we calculate, the maximum size of this cache is 9 which represents the 9 chunks for a player position.
+We cleanup the cache following hysteresis logic which is in the function cleanupCaches() in App.ts.
+
