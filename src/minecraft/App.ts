@@ -162,10 +162,6 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.blankCubeRenderPass.setup();    
   }
 
-  public getChunk(key: string, stack: Map<string, Chunk>): Chunk | undefined {
-    return stack.get(key);
-  }
-
   // TODO: confirm if it's correct
   private generateChunks(): void {
     const chunkSize = 64.0;
@@ -184,36 +180,44 @@ export class MinecraftAnimation extends CanvasAnimation {
             let cacheChunk = this.cacheHash.get(key);
             if (currentChunk) {
               createNewChunks.set(key, currentChunk);
-            // if is in already in cache
+            // // if is in already in cache
             } else if (cacheChunk) {
               createNewChunks.set(key, cacheChunk);
             } else {
               const newChunk = new Chunk(xCoord, zCoord, chunkSize);
               createNewChunks.set(key, newChunk);
             }
-            // TODO: confirm exclamation
             // if the block is in the position 4 it means it is the center of the character
             // therefore we assign accordingly
-            if (i == Math.floor(this.cacheLimit / 2)) {
-              this.chunk = this.getChunk(key, createNewChunks)!;
+            if (i == 0 && j == 0) {
+              this.chunk = createNewChunks.get(key)!;
             }
         }
     }
-
-    // TODO: fix these two cacas
-    // Clear cache if it exceeds the configured maximum size for hysteresis logic
-    if (Object.keys(this.cacheHash).length > this.cacheLimit) {
-      this.cacheHash.clear();
-    }
-    // Cache those chunks that exist in current but not in new chunks
-    // TODO: this can exceed the limit of cache (9 elements) after we assign more elements
-    // better the logic by popping one element if we find a new element, FIFO or LRU or whatever
-    this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
-      if (!(createNewChunks.get(key))) {
-          this.cacheHash.set(key, this.stackOfChunks.get(key)!);
-      }
-    });
+    this.cleanupCaches(createNewChunks);
     this.stackOfChunks = createNewChunks;
+  }
+
+  private cleanupCaches(newChunks: Map<string, Chunk>): void {
+    const keysToRemove: string[] = [];
+    this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
+        if (!newChunks.has(key)) {
+            if (this.cacheHash.size > this.cacheLimit) {
+                keysToRemove.push(key);
+            } else {
+                this.cacheHash.set(key, chunk);
+            }
+        }
+    });
+
+    // Perform removal outside the forEach to avoid concurrent modification issues
+    keysToRemove.forEach(key => this.cacheHash.delete(key));
+
+    // Ensure the cache does not exceed the set limit
+    // if (this.cacheHash.size > this.cacheLimit) {
+    //     const excess = this.cacheHash.size - this.cacheLimit;
+    //     Array.from(this.cacheHash.keys()).slice(0, excess).forEach(key => this.cacheHash.delete(key));
+    // }
   }
 
   /**
@@ -320,7 +324,6 @@ export class MinecraftAnimation extends CanvasAnimation {
     // this.blankCubeRenderPass.drawInstanced(this.chunk.numCubes());    
     // Iterate over each chunk in the stack
     // console.log("drawScene 1\n");
-    // for (const chunk of this.stackOfChunks.getChunks()) {
     this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
       this.blankCubeRenderPass.updateAttributeBuffer('aOffset', chunk.cubePositions());
       this.blankCubeRenderPass.drawInstanced(chunk.numCubes());
