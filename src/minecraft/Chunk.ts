@@ -4,6 +4,15 @@ import Rand from "../lib/rand-seed/Rand.js"
 const perlin3D = true;
 const seed = 10.0;
 
+const vecsAdd = [new Vec3([0.0, 0.0, 0.0]),  //0
+                    new Vec3([0.0, 0.0, 1.0]), //1
+                    new Vec3([0.0, 1.0, 0.0]), //2 
+                    new Vec3([0.0, 1.0, 1.0]), //3
+                    new Vec3([1.0, 0.0, 0.0]), //4
+                    new Vec3([1.0, 0.0, 1.0]), //5
+                    new Vec3([1.0, 1.0, 0.0]), //6
+                    new Vec3([1.0, 1.0, 1.0])]; //7
+
 export class Chunk {
     private cubes: number; // Number of cubes that should be *drawn* each frame
     private cubePositionsF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
@@ -334,10 +343,14 @@ export class Chunk {
         return new Vec3([x, y, z]);
     }
     
+    // We use the OpenGL way to generate random numbers here to keep in sync with perlin 2d, it also seems faster than TS Rand()
     private random(xyz: Vec3, seed: number): number {
-        let newSeed = `${xyz.x} ${xyz.y} ${xyz.z} ${seed}`;
-        let rng = new Rand(newSeed);
-        return rng.next();
+        let temp = (Math.sin(Vec3.dot(Vec3.sum(xyz, new Vec3([seed, seed, seed])), new Vec3([12.9898, 78.233, 54.53]))) * 43758.5453);
+        return Math.abs(temp) - Math.floor(Math.abs(temp));
+
+        // let newSeed = `${xyz.x} ${xyz.y} ${xyz.z} ${seed}`;
+        // let rng = new Rand(newSeed);
+        // return rng.next();
     }
 
     // Similar to perlin() in shader, but essentially in 3d, mainly need to change unit_vec_3d to account for
@@ -347,15 +360,6 @@ export class Chunk {
         // let uvw = new Vec3([i, j, k]);
         let uvFrac = new Vec3([(topLeftx+i)/grid_spacing, (topLefty+j)/grid_spacing, k/grid_spacing]);
         let grid = new Vec3([Math.floor(uvFrac.x), Math.floor(uvFrac.y), Math.floor(uvFrac.z)]);
-
-        let vecsAdd = [new Vec3([0.0, 0.0, 0.0]),  //0
-                        new Vec3([0.0, 0.0, 1.0]), //1
-                        new Vec3([0.0, 1.0, 0.0]), //2 
-                        new Vec3([0.0, 1.0, 1.0]), //3
-                        new Vec3([1.0, 0.0, 0.0]), //4
-                        new Vec3([1.0, 0.0, 1.0]), //5
-                        new Vec3([1.0, 1.0, 0.0]), //6
-                        new Vec3([1.0, 1.0, 1.0])]; //7
         
         let randVecs: Vec3[] = new Array(8);
         for (let i=0; i<vecsAdd.length; i++) {

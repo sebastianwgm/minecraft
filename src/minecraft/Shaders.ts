@@ -69,7 +69,7 @@ export const blankCubeFSText = `
         float smoothy = smoothmix(u, v, uvFract.x - grid.x);
         float smoothz = smoothmix(smoothx, smoothy, uvFract.y - grid.y);
 
-        return abs(smoothz) + 0.5;
+        return smoothz + 0.5;
     }
     
     // time varying perlin noise
