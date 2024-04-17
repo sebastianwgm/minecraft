@@ -65,12 +65,9 @@ export const blankCubeFSText = `
         float u = dot(uvFract - grid - vec2(0.0, 1.0), unit_vec_u);
         float v = dot(uvFract - grid - vec2(1.0, 1.0), unit_vec_v);
 
-        float varX = grid.x + 1.0 - uvFract.x;
-        float varY = grid.y + 1.0 - uvFract.y;
-
-        float smoothx = smoothmix(s, t, 1.0 - varX);
-        float smoothy = smoothmix(u, v, 1.0 - varX);
-        float smoothz = smoothmix(smoothx, smoothy, 1.0 - varY);
+        float smoothx = smoothmix(s, t, uvFract.x - grid.x);
+        float smoothy = smoothmix(u, v, uvFract.x - grid.x);
+        float smoothz = smoothmix(smoothx, smoothy, uvFract.y - grid.y);
 
         return abs(smoothz) + 0.5;
     }
@@ -96,12 +93,9 @@ export const blankCubeFSText = `
         float u = dot(uvFract - grid - vec2(0.0, 1.0), unit_vec_u);
         float v = dot(uvFract - grid - vec2(1.0, 1.0), unit_vec_v);
 
-        float varX = grid.x + 1.0 - uvFract.x;
-        float varY = grid.y + 1.0 - uvFract.y;
-
-        float smoothx = smoothmix(s, t, 1.0 - varX);
-        float smoothy = smoothmix(u, v, 1.0 - varX);
-        float smoothz = smoothmix(smoothx, smoothy, 1.0 - varY);
+        float smoothx = smoothmix(s, t, uvFract.x - grid.x);
+        float smoothy = smoothmix(u, v, uvFract.x - grid.x);
+        float smoothz = smoothmix(smoothx, smoothy, uvFract.y - grid.y);
 
         return abs(smoothz) + 0.5;
     }

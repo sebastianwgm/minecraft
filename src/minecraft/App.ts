@@ -154,7 +154,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     });
     this.blankCubeRenderPass.addUniform("perlinTime",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-        gl.uniform1f(loc, (Date.now() / 250) % (2 * Math.PI));
+        gl.uniform1f(loc, (Date.now() / 400) % (2 * Math.PI));
     });
     this.blankCubeRenderPass.setDrawData(this.ctx.TRIANGLES, this.cubeGeometry.indicesFlat().length, this.ctx.UNSIGNED_INT, 0);
     this.blankCubeRenderPass.setup();    
