@@ -1,6 +1,9 @@
 import { Mat3, Mat4, Vec2, Vec3, Vec4 } from "../lib/TSM.js";
 import Rand from "../lib/rand-seed/Rand.js"
 
+const perlin3D = true;
+const seed = 10.0;
+
 export class Chunk {
     private cubes: number; // Number of cubes that should be *drawn* each frame
     private cubePositionsF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
@@ -9,6 +12,7 @@ export class Chunk {
     private size: number; // Number of cubes along each side of the chunk
     private maxHeightOfField: number = 100; // maximum height for the range of frequencies heights
     private patchHeightMap: Float32Array;
+    private opacities: {};
 
     // Define interpolation filters
     private topLeft = new Float32Array([9, 3, 3, 1]);
@@ -21,7 +25,8 @@ export class Chunk {
         this.y = centerY;
         this.size = size;
         this.cubes = size*size;     
-        this.patchHeightMap = new Float32Array(size * size);   
+        this.patchHeightMap = new Float32Array(size * size);
+        this.opacities = {};
         this.generateCubes(); 
     }
 
@@ -197,34 +202,41 @@ export class Chunk {
     }
     private numberOfCubesToDraw(arr: Float32Array, i: number, j: number, height: number): number {
         // TODO: fix 
-        if (!(i !== 0 && j !== 0 && i !== this.size - 1 && j !== this.size - 1)) {
-            return height;
-        } else {
-            const size = this.size;
-            const idx = size * i + j;  // current index
-        
-            // Check boundaries and compute indices safely (just in case)
-            const indexUp = i > 0 ? size * (i - 1) + j : idx;
-            const indexDown = i < size - 1 ? size * (i + 1) + j : idx;
-            const indexLeft = j > 0 ? size * i + (j - 1) : idx;
-            const indexRight = j < size - 1 ? size * i + (j + 1) : idx;
-        
-            // Array of the current and neighboring heights
-            const heights = [
-                arr[idx],       // Current
-                arr[indexUp],     // Up
-                arr[indexDown],   // Down
-                arr[indexLeft],   // Left
-                arr[indexRight]   // Right
-            ];
-        
-            // Find the minimum height around the current cube
-            const minNeigh = Math.min(...heights);
-        
-            // Calculate the number of cubes drawn
-            return Math.floor(arr[idx] - minNeigh + 1);
+        // if (i == 0 || j == 0 || i == (this.size-1) || j== (this.size-1)) {
+        //     // It def is a border, so we draw all required cubes here
+        //     return height;
+        // }
+        let numCubes = 0;
+        const idx = this.size * i + j;
+        // const idxPrevRow = idx - this.size; // this.size * (i-1) + j;
+        // const idxNextRow = idx + this.size; // this.size * (i+1) + j;
+        for (let k = 0; k < height; k++) {
+            if (this.drawAtK(i, j, k, height)) {
+                numCubes++;
+            }
         }
-        
+        return numCubes;
+    }
+
+    private drawAtK(i: number, j: number, k: number, height: number): boolean {
+        const idx = this.size * i + j;
+        if (this.opacities[idx][k]< 0) {
+            return false;
+        }
+        if (i == 0 || j == 0 || i == (this.size-1) || j== (this.size-1) || (k == 0) || (k == (height-1))) {
+            return true;
+        }
+        // Check if it's uncovered on any side, so we need to draw it
+        if (this.opacities[idx-this.size][k] < 0
+            || this.opacities[idx+this.size][k] < 0
+            || this.opacities[idx-1][k] < 0
+            || this.opacities[idx+1][k] < 0
+            || this.opacities[idx][k-1] < 0
+            || this.opacities[idx][k+1] < 0) {
+
+            return true;
+        }
+        return false;
     }
 
     private generateCubes() {
@@ -250,14 +262,40 @@ export class Chunk {
         // console.log("patchHeightMap 1: ", this.patchHeightMap);
         // TODO: maybe use 3D Perlin noise to generate true volumetric terrain, with cavern systems, 
         // ore veins, and overhangs.
+        this.opacities = {};
+        for (let i = 0; i < this.size; i++) {
+            for (let j = 0; j < this.size; j++) {
+                const idx = this.size * i + j;
+                const height = this.patchHeightMap[idx]; // TODO: Do we need floor here?
+                this.opacities[idx] = new Float32Array(height);
+                let maxHeight = 0;
+                for (let k=0; k < height; k++) {
+                    // 3D Perlin noise
+                    if (perlin3D) {
+                        this.opacities[idx][k] = this.perlin3DNoise(i,j,k, topleftx, toplefty);// + 0.8 * ((40 - k) / 100); TODO: do we need the bias?
+                    }
+                    else {
+                        this.opacities[idx][k] = 1;
+                    }
+                    // numberOfCubes += this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
+                    if (this.opacities[idx][k] > 0) {
+                        maxHeight = k+1;
+                    }
+                }
+                this.patchHeightMap[idx] = maxHeight;
+            }
+        }
+
         let numberOfCubes = 0;
         for (let i = 0; i < this.size; i++) {
             for (let j = 0; j < this.size; j++) {
                 const idx = this.size * i + j;
-                const height = Math.floor(this.patchHeightMap[idx]);
+                const height = this.patchHeightMap[idx]; // TODO: Do we need floor here?
                 numberOfCubes += this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
             }
         }
+
+
         // Pass the cubes to be drawn
         this.cubes = numberOfCubes;
         this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
@@ -265,17 +303,88 @@ export class Chunk {
         for (let i = 0; i < this.size; i++) {
             for (let j = 0; j < this.size; j++) {
                 const height = Math.floor(this.patchHeightMap[this.size * i + j]);
-                const numCubes = this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
-                for (let k = 0; k < numCubes; k++) {
-                    const baseIndex = 4 * position;
-                    this.cubePositionsF32[baseIndex] = topleftx + j;
-                    this.cubePositionsF32[baseIndex + 1] = height - k;
-                    this.cubePositionsF32[baseIndex + 2] = toplefty + i;
-                    this.cubePositionsF32[baseIndex + 3] = 0;
-                    position++;
+                const idx = this.size * i + j;
+                for (let k = 0; k < height; k++) {
+                    if (this.drawAtK(i, j, k, height)) {
+                        const baseIndex = 4 * position;
+                        this.cubePositionsF32[baseIndex] = topleftx + i;
+                        this.cubePositionsF32[baseIndex + 1] = k; // TODO: Check if this should be k or height-k.
+                        this.cubePositionsF32[baseIndex + 2] = toplefty + j;
+                        this.cubePositionsF32[baseIndex + 3] = 0;
+                        position++;
+                    }
                 }
             }
         }
+    }
+
+    private smoothmix(a0: number, a1: number, w: number) {
+        return (a1 - a0) * (3.0 - w * 2.0) * w * w + a0;
+    }
+
+    // Standard function for generating points uniformly on a unit sphere
+    private unit_vec_3d(xyz: Vec3, seed: number): Vec3 {
+        let theta: number = 2 * Math.PI * this.random(xyz, seed); // 2* PI * random value
+        let phi: number = Math.acos(2.0 * this.random(Vec3.sum(xyz, new Vec3([1.0, 2.0, 3.0])), seed + 1.0) - 1.0); // acos(2*random - 1)
+    
+        let x: number = Math.sin(phi) * Math.cos(theta);
+        let y: number = Math.sin(phi) * Math.sin(theta);
+        let z: number = Math.cos(phi);
+    
+        return new Vec3([x, y, z]);
+    }
+    
+    private random(xyz: Vec3, seed: number): number {
+        let newSeed = `${xyz.x} ${xyz.y} ${xyz.z} ${seed}`;
+        let rng = new Rand(newSeed);
+        return rng.next();
+    }
+
+    // Similar to perlin() in shader, but essentially in 3d, mainly need to change unit_vec_3d to account for
+    // points on a unit sphere instead of a unit circle
+    private perlin3DNoise(i: number, j: number, k: number, topLeftx: number, topLefty: number) {
+        let grid_spacing: number = 2.0;
+        // let uvw = new Vec3([i, j, k]);
+        let uvFrac = new Vec3([(topLeftx+i)/grid_spacing, (topLefty+j)/grid_spacing, k/grid_spacing]);
+        let grid = new Vec3([Math.floor(uvFrac.x), Math.floor(uvFrac.y), Math.floor(uvFrac.z)]);
+
+        let vecsAdd = [new Vec3([0.0, 0.0, 0.0]),  //0
+                        new Vec3([0.0, 0.0, 1.0]), //1
+                        new Vec3([0.0, 1.0, 0.0]), //2 
+                        new Vec3([0.0, 1.0, 1.0]), //3
+                        new Vec3([1.0, 0.0, 0.0]), //4
+                        new Vec3([1.0, 0.0, 1.0]), //5
+                        new Vec3([1.0, 1.0, 0.0]), //6
+                        new Vec3([1.0, 1.0, 1.0])]; //7
+        
+        let randVecs: Vec3[] = new Array(8);
+        for (let i=0; i<vecsAdd.length; i++) {
+            randVecs[i] = this.unit_vec_3d(Vec3.sum(grid, vecsAdd[i]), seed);
+        }
+
+        let dotProds: number[] = new Array(vecsAdd.length);
+        for (let i=0; i<vecsAdd.length; i++) {
+            dotProds[i] = Vec3.dot(Vec3.difference(Vec3.difference(uvFrac, grid), vecsAdd[i]), randVecs[i]);
+        }
+
+        let varX = uvFrac.x - grid.x;
+        let varY = uvFrac.y - grid.y;
+        let varZ = uvFrac.z - grid.z;
+        
+
+        // Trilinear interpolation using smoothmix instead of mix
+        let smooth1x = this.smoothmix(dotProds[0], dotProds[4], varX);
+        let smooth2x = this.smoothmix(dotProds[1], dotProds[5], varX);
+        let smooth3x = this.smoothmix(dotProds[2], dotProds[6], varX);
+        let smooth4x = this.smoothmix(dotProds[3], dotProds[7], varX);
+
+        let smooth1y = this.smoothmix(smooth1x, smooth3x, varY);
+        let smooth2y = this.smoothmix(smooth2x, smooth4x, varY);
+
+        let smoothz = this.smoothmix(smooth1y, smooth2y, varZ);
+
+        return smoothz + 0.5; //TODO: Check if abs is needed.
+
     }
     
     // TODO: check logic/math
