@@ -11,10 +11,10 @@ factor will be: log_2 of 8, 16, 32 = 3, 4, 5 for example and we applied 2x2
 convolution kernels to update the positions of the newCubePositionsF32.
 
 Extra Credit (20 pts): 3D Perlin noise to generate true volumetric terrain:
-To draw the cubes we implemented 3D perlin noise with density to choose which cubes
+To draw the cubes we implemented 3D perlin noise with opacity to choose which cubes
 are gonna be drawn, this allowed to get the volumetric terrain.
-TODO: complete
-We use the OpenGL to generate the random numbers for 3D perlin noise.
+The implementation is similar to 2D perlin noise except that we implemented the 3D perlin noise on the CPU instead of the GPU. We define random() similar to the random() function provided for 2D perlin noise on GPU, except it uses xyz instead of just xy - this is the standard way of generating random numbers within GL since it does nopt have a random generator. We use this intead of the inbuilt TS random generator for speed benefits. Similar to unit_vec which generates points uniformly on a unit circle for 2D perlin noise, we define a unit_vec_3d which generates points uniformly on a unit sphere for 3D perlin noise. We finally use trilinear interpolation for 3D noise, first on the x axis, then y, and then finally z. To enable cavern systems, ore veins, and overhangs, after using value noise to decide the height h at each location of the grid, we use 3D perlin noise to decide whether the block at height k (for k between 1 to h) will be removed (i.e., as if it was not there).
+
 
 Procedural Textures (40 pts):
 We implemented perlin noise following the lectures and by using the functions provided
