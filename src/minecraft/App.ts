@@ -227,7 +227,40 @@ export class MinecraftAnimation extends CanvasAnimation {
     // this.playerPosition.add(this.gui.walkDir());
     let newPosition : Vec3 = new Vec3(this.playerPosition.xyz);
     // add new position considering walkDir
-    let possibles: Chunk[] = this.getPossibleBlocks(this.playerPosition);
+    // let possibles: Chunk[] = this.getPossibleBlocks(this.playerPosition);
+    let possibles: Chunk[] = [this.chunk]; // Start with the current chunk
+    const values: Vec4 = this.chunk.getValues();
+    const center = new Vec3([values.x, 0, values.y]);
+    // TODO: confirm math
+    const xDiff = Math.abs(this.playerPosition.x - center.x) % sizeOfTerrain;
+    const zDiff = Math.abs(this.playerPosition.z - center.z) % sizeOfTerrain;
+
+    const nearXBoundary = xDiff <= 2.0 || xDiff >= sizeOfTerrain - 2.0;
+    const nearZBoundary = zDiff <= 2.0 || zDiff >= sizeOfTerrain - 2.0;
+
+    if (nearXBoundary) {
+      const keyNearXBoundary1 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z)}`;
+      const keyNearXBoundary2 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z)}`;
+      possibles.push(this.stackOfChunks.get(keyNearXBoundary1)!);
+      possibles.push(this.stackOfChunks.get(keyNearXBoundary2)!);
+    }
+    if (nearZBoundary) {
+      const keyNearZBoundary1 = `${Math.round(center.x)} ${Math.round(center.z + sizeOfTerrain)}`;
+      const keyNearZBoundary2 = `${Math.round(center.x)} ${Math.round(center.z - sizeOfTerrain)}`;
+      possibles.push(this.stackOfChunks.get(keyNearZBoundary1)!);
+      possibles.push(this.stackOfChunks.get(keyNearZBoundary2)!);
+    }
+    if (nearXBoundary && nearZBoundary) {
+      const keyNearXandZBoundaries1 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z + sizeOfTerrain)}`;
+      const keyNearXandZBoundaries2 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z + sizeOfTerrain)}`;
+      const keyNearXandZBoundaries3 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z - sizeOfTerrain)}`;
+      const keyNearXandZBoundaries4 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z - sizeOfTerrain)}`;
+      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries1)!);
+      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries2)!);
+      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries3)!);
+      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries4)!);
+    }
+
     newPosition.add(this.gui.walkDir());
     // if the player has moved
     if (!newPosition.equals(this.playerPosition)) {
@@ -247,7 +280,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     // let possiblesVertical: Chunk[] = this.getPossibleBlocks(this.playerPosition);
     let checkIfPossible = true;
     for (let chunk of possibles) {
-      checkIfPossible = this.checkVerticalCollisions(newPosition, chunk);
+      checkIfPossible = this.checkVerticalCollisions(newPosition, chunk, velocity);
       if (!checkIfPossible) {
         break;
       }
@@ -292,47 +325,10 @@ export class MinecraftAnimation extends CanvasAnimation {
     });
   }
 
-  private getPossibleBlocks(newPosition: Vec3): Chunk[] {
-    // check for possible collisions detections
-    const possibles: Chunk[] = [this.chunk]; // Start with the current chunk
-    const values: Vec4 = this.chunk.getValues();
-    const center = new Vec3([values.x, 0, values.y]);
-    // TODO: confirm math
-    const xDiff = Math.abs(this.playerPosition.x - center.x) % sizeOfTerrain;
-    const zDiff = Math.abs(this.playerPosition.z - center.z) % sizeOfTerrain;
-
-    const nearXBoundary = xDiff <= 2.0 || xDiff >= sizeOfTerrain - 2.0;
-    const nearZBoundary = zDiff <= 2.0 || zDiff >= sizeOfTerrain - 2.0;
-
-    if (nearXBoundary) {
-      const keyNearXBoundary1 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z)}`;
-      const keyNearXBoundary2 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z)}`;
-      possibles.push(this.stackOfChunks.get(keyNearXBoundary1)!);
-      possibles.push(this.stackOfChunks.get(keyNearXBoundary2)!);
-    }
-    if (nearZBoundary) {
-      const keyNearZBoundary1 = `${Math.round(center.x)} ${Math.round(center.z + sizeOfTerrain)}`;
-      const keyNearZBoundary2 = `${Math.round(center.x)} ${Math.round(center.z - sizeOfTerrain)}`;
-      possibles.push(this.stackOfChunks.get(keyNearZBoundary1)!);
-      possibles.push(this.stackOfChunks.get(keyNearZBoundary2)!);
-    }
-    if (nearXBoundary && nearZBoundary) {
-      const keyNearXandZBoundaries1 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z + sizeOfTerrain)}`;
-      const keyNearXandZBoundaries2 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z + sizeOfTerrain)}`;
-      const keyNearXandZBoundaries3 = `${Math.round(center.x + sizeOfTerrain)} ${Math.round(center.z - sizeOfTerrain)}`;
-      const keyNearXandZBoundaries4 = `${Math.round(center.x - sizeOfTerrain)} ${Math.round(center.z - sizeOfTerrain)}`;
-      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries1)!);
-      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries2)!);
-      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries3)!);
-      possibles.push(this.stackOfChunks.get(keyNearXandZBoundaries4)!);
-    }
-    return possibles;
-  }
-
   private isNewPositionSafe(position: Vec3, chunks: Chunk[]): boolean {
-    for (let i = 0; i < chunks.length; i++) {
-    // for (let chunk of chunks) {
-      if (chunks[i].lateralCheck(position, radius, maxHeightToCheck)) {
+    // for (let i = 0; i < chunks.length; i++) {
+    for (let chunk of chunks) {
+      if (chunk.lateralCheck(position, radius, maxHeightToCheck)) {
         return false;
       }
     }
@@ -349,8 +345,9 @@ export class MinecraftAnimation extends CanvasAnimation {
     return velocity;
   }
 
-  private checkVerticalCollisions(position: Vec3, chunk: Chunk): boolean {
-    let height = chunk.minimumVerticalPosition(position, maxHeightToCheck);
+  private checkVerticalCollisions(position: Vec3, chunk: Chunk, velocity: Vec3): boolean {
+    let isAscending = (velocity.y > 0) ? true : false;
+    let height = chunk.minimumVerticalPosition(position, maxHeightToCheck, isAscending);
     if (height != Number.MIN_SAFE_INTEGER) {
       this.playerPosition.y = height + maxHeightToCheck;
       this.isPlayerOnGround = true;
@@ -372,6 +369,7 @@ export class MinecraftAnimation extends CanvasAnimation {
         this.speed = new Vec3([0.0, 10.0, 0.0]);
       }
   }
+
 }
 
 export function initializeCanvas(): void {

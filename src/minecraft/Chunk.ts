@@ -318,7 +318,7 @@ export class Chunk {
     // augment the Chunk class with logic for determining the minimum vertical position
     // TODO: confirm if isAscending is helpful for something
     // public minimumVerticalPosition(newPosition: Vec3, radius: number, maxHeightToCheck: number, isAscending: boolean): number{
-    public minimumVerticalPosition(newPosition: Vec3, maxHeightToCheck: number): number{
+    public minimumVerticalPosition(newPosition: Vec3, maxHeightToCheck: number, isAscending: boolean): number{
         const topLeftX = this.x - this.size / 2;
         const topLeftY = this.y - this.size / 2;
         // Calculate adjusted positions relative to chunk coordinates
@@ -336,6 +336,25 @@ export class Chunk {
         } else {
             return height;
         }
+        // if (isAscending) {
+        //     const baseY = Math.round(newPosition.y - maxHeightToCheck);
+        //     const height = Math.floor(this.patchHeightMap[idx]);
+        //     if (baseY >= height) {
+        //         return Number.MIN_SAFE_INTEGER;
+        //     } else {
+        //         return height;
+        //     }
+        // } 
+        // else {
+        //     const topY = Math.round(newPosition.y);
+        //     const height = Math.floor(this.patchHeightMap[idx]);
+        //     if (topY >= height) {
+        //         return Number.MIN_SAFE_INTEGER;
+        //     } else {
+        //         return height;
+        //     }
+        // }
+        
         // TODO: Check for vertical collisions based on direction of movement?
         // if (isAscending) {
         //     return this.checkAscendingCollision(idx, baseY, maxHeightToCheck);
