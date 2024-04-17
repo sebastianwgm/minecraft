@@ -119,6 +119,13 @@ export const blankCubeFSText = `
     }
 
     // Using sin function
+    float marbleTextureVarying(vec2 uv, float seed) {
+        float noiseBase = timeVaryingPerlin(uv * 3.0, seed, 10.0);
+        float x = uv.x * 10.0 + noiseBase * 10.0;
+        float y = uv.y * 10.0 + noiseBase * 10.0;
+        return sin(x + y);
+    }
+
     float marbleTexture(vec2 uv, float seed) {
         float noiseBase = perlin(uv * 3.0, seed, 10.0);
         float x = uv.x * 10.0 + noiseBase * 10.0;
@@ -128,6 +135,14 @@ export const blankCubeFSText = `
 
     float otherTextureForMix(vec2 uv, float seed) {
         float noiseBase = perlin(uv * 3.0, seed, 10.0);
+        float x = (uv.x - noiseBase) * (uv.x - noiseBase);
+        float y = (uv.y - noiseBase) * (uv.y - noiseBase);
+        float result = sqrt(x + y);
+        return sin(result);
+    }
+
+    float otherTextureForMixVarying(vec2 uv, float seed) {
+        float noiseBase = timeVaryingPerlin(uv * 3.0, seed, 10.0);
         float x = (uv.x - noiseBase) * (uv.x - noiseBase);
         float y = (uv.y - noiseBase) * (uv.y - noiseBase);
         float result = sqrt(x + y);
@@ -147,19 +162,35 @@ export const blankCubeFSText = `
         return noise;
     }
 
+    float woodTextureVarying(vec2 uv, float seed) {
+        float noise = 0.0;
+        float frequency = 3.0;
+        float grid_spacing = 2.0;
+        for (int i = 0; i < 4; i++) {
+            noise += (timeVaryingPerlin(uv * frequency, seed, grid_spacing)) * (1.0 / grid_spacing);
+            grid_spacing = grid_spacing * grid_spacing;
+        }
+        return noise;
+    }
+
     void main() {
 
         vec3 kd = vec3(1.0, 1.0, 1.0);
         vec3 ka = vec3(0.5, 0.5, 0.5);
-
         float seed = 10.0;
-        float noise = perlin(uv, seed, 0.5);
-        float marble = marbleTexture(uv, seed);
-        float wood = woodTexture(uv, seed);
-        float stripes = otherTextureForMix(uv, seed);
-        float mixed = noise * 0.5 + stripes * 0.25 + wood * 0.25;
+        // float noise = perlin(uv, seed, 0.5);
+        // float marble = marbleTexture(uv, seed);
+        // float wood = woodTexture(uv, seed);
+        // float stripes = otherTextureForMix(uv, seed);
+        // float mixed = noise * 0.5 + stripes * 0.25 + wood * 0.25;
+        // TimeVarying for everything
         float timeVarying = tymeVaryingPerlinTexture(uv, seed);
-
+        float noise = timeVaryingPerlin(uv, seed, 0.5);
+        float marble = marbleTextureVarying(uv, seed);
+        float wood = woodTextureVarying(uv, seed);
+        float stripes = otherTextureForMixVarying(uv, seed);
+        float mixed = noise * 0.5 + stripes * 0.25 + wood * 0.25;
+        
         /* Compute light fall off */
         vec4 lightDirection = uLightPos - wsPos;
         float dot_nl = dot(normalize(lightDirection), normalize(normal));
