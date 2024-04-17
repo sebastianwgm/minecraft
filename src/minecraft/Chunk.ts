@@ -197,6 +197,7 @@ export class Chunk {
         return finalReturnedArray;
     }
     private numberOfCubesToDraw(arr: Float32Array, i: number, j: number, height: number): number {
+        // TODO: fix 
         if (!(i !== 0 && j !== 0 && i !== this.size - 1 && j !== this.size - 1)) {
             return height;
         } else {
@@ -329,59 +330,25 @@ export class Chunk {
             return Number.MIN_SAFE_INTEGER;
         }
         const idx = adjustedX * this.size + adjustedY;
-        const baseY = newPosition.y - maxHeightToCheck;
-        const height = Math.floor(this.patchHeightMap[idx]);
-        if (baseY >= height) {
-            return Number.MIN_SAFE_INTEGER;
+        const baseY = Math.round(newPosition.y - maxHeightToCheck);
+        const topY = Math.round(newPosition.y);
+        // const height = Math.floor(this.patchHeightMap[idx]);
+        const height = this.patchHeightMap[idx];
+        if (isAscending) {
+            for (let i = 0; i <= 2.0; i++) {
+                if (baseY + i + 1 < height && this.patchHeightMap[idx + baseY + i + 1] >= 0) {
+                    return baseY + i - 2.0 - 0.5;
+                }
+            }
         } else {
-            return height;
+            for (let i = 0; i <= 2.0; i++) {
+                if (topY - i < height && this.patchHeightMap[idx + topY - i] >= 0) {
+                    return topY - i + 0.5;
+                }
+            }
         }
-        // if (isAscending) {
-        //     const baseY = Math.round(newPosition.y - maxHeightToCheck);
-        //     const height = Math.floor(this.patchHeightMap[idx]);
-        //     if (baseY >= height) {
-        //         return Number.MIN_SAFE_INTEGER;
-        //     } else {
-        //         return height;
-        //     }
-        // } 
-        // else {
-        //     const topY = Math.round(newPosition.y);
-        //     const height = Math.floor(this.patchHeightMap[idx]);
-        //     if (topY >= height) {
-        //         return Number.MIN_SAFE_INTEGER;
-        //     } else {
-        //         return height;
-        //     }
-        // }
-        
-        // TODO: Check for vertical collisions based on direction of movement?
-        // if (isAscending) {
-        //     return this.checkAscendingCollision(idx, baseY, maxHeightToCheck);
-        // } else {
-        //     return this.checkDescendingCollision(idx, topY, maxHeightToCheck);
-        // }
+        return Number.MIN_SAFE_INTEGER;
     }
-
-    // private checkAscendingCollision(index: number, baseY: number, maxHeightToCheck: number): number {
-    //     for (let i = 0; i <= maxHeightToCheck; i++) {
-    //         const height = this.patchHeightMap[index];
-            
-    //         if (baseY + i + 1 < this.densityMap[index].length && this.densityMap[index][baseY + i + 1] >= 0) {
-    //             return baseY + i + 1 - Config.PLAYER_HEIGHT - 0.5;
-    //         }
-    //     }
-    //     return Number.MIN_SAFE_INTEGER;
-    // }
-    
-    // private checkDescendingCollision(index: number, topY: number, maxHeightToCheck: number): number {
-    //     for (let i = 0; i <= maxHeightToCheck; i++) {
-    //         if (topY - i < this.densityMap[index].length && this.densityMap[index][topY - i] >= 0) {
-    //             return topY - i + 0.5;
-    //         }
-    //     }
-    //     return Number.MIN_SAFE_INTEGER;
-    // }
 
     public cubePositions(): Float32Array {
         return this.cubePositionsF32;

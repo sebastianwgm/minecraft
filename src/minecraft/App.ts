@@ -154,7 +154,10 @@ export class MinecraftAnimation extends CanvasAnimation {
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.viewMatrix().all()));
     });
-    
+    this.blankCubeRenderPass.addUniform("perlinTime",
+      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+        gl.uniform1f(loc, (Date.now() / 250) % (2 * Math.PI));
+    });
     this.blankCubeRenderPass.setDrawData(this.ctx.TRIANGLES, this.cubeGeometry.indicesFlat().length, this.ctx.UNSIGNED_INT, 0);
     this.blankCubeRenderPass.setup();    
   }
@@ -277,7 +280,6 @@ export class MinecraftAnimation extends CanvasAnimation {
     let velocity: Vec3 = this.calculateCurrentVelocity();
     newPosition.add(velocity);
     this.timeForFrames = Date.now();
-    // let possiblesVertical: Chunk[] = this.getPossibleBlocks(this.playerPosition);
     let checkIfPossible = true;
     for (let chunk of possibles) {
       checkIfPossible = this.checkVerticalCollisions(newPosition, chunk, velocity);
