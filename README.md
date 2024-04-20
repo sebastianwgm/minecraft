@@ -8,4 +8,4 @@ https://github.com/sebastianwgm/minecraft/assets/122843474/e24a5eed-6946-4a2c-ab
 
 Additionally, we pioneered the use of 3D Perlin noise for true volumetric terrain generation. To render the terrain blocks, we applied 3D Perlin noise with variable opacity settings to selectively draw cubes, enhancing the volumetric effect. The implementation is similar to 2D perlin noise except that we implemented the 3D perlin noise on the CPU instead of the GPU:
 
-<img width="1512" alt="VolumetricTerrainGeneration" src="https://github.com/sebastianwgm/minecraft/assets/122843474/ea97b607-043a-4fda-9283-bf117f8cdedb">
+<img width="1219" alt="VolumetricTerrainGeneration" src="https://github.com/sebastianwgm/minecraft/assets/122843474/cf9d920e-e198-4804-884d-d16b3a82cd9f">
