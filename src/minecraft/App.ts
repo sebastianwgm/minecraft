@@ -19,6 +19,8 @@ const sizeOfTerrain = 64.0;
 const radius = 0.4;
 const maxHeightToCheck = 2.0;
 const gravity = -9.8;
+const textureWidth = 1280;
+const textureHeight = 960;
 
 export class night_light {
   public static change_velocity : number = 240;
@@ -49,6 +51,8 @@ export class MinecraftAnimation extends CanvasAnimation {
   private backgroundColor: Vec4;
 
   private canvas2d: HTMLCanvasElement;
+
+  private ssaoKernel: Float32Array = new Float32Array(64*3);
   
   // Player's head position in world coordinate.
   // Player should extend two units down from this location, and 0.4 units radially.
@@ -141,11 +145,43 @@ export class MinecraftAnimation extends CanvasAnimation {
       undefined,
       new Float32Array(0)
     );
+    // TODO: CONFIRM, ADD gPosition, gNormal and textNoise
+    // this.blankCubeRenderPass.addInstancedAttribute("gPosition",
+    //   4,
+    //   this.ctx.FLOAT,
+    //   false,
+    //   4 * Float32Array.BYTES_PER_ELEMENT,
+    //   0,
+    //   undefined,
+    //   new Float32Array(0)
+    // );
 
     this.blankCubeRenderPass.addUniform("uLightPos",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform4fv(loc, this.lightPosition.xyzw);
     });
+
+    // TODO: confirm this
+    // this.blankCubeRenderPass.addUniform("gPosition",
+    //   (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+    //     gl.uniform2f(loc, 0.0, 0.0);
+    // });
+    // this.blankCubeRenderPass.addUniform("gNormal",
+    //   (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+    //     gl.uniform2f(loc, 1.0, 1.0);
+    // });
+    // this.blankCubeRenderPass.addUniform("texNoise",
+    //   (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+    //     gl.uniform2f(loc, 2.0, 2.0);
+    // });
+    // TODO: remove if we do not use it
+    this.blankCubeRenderPass.addUniform("ssaoInput",
+      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+        gl.uniform1f(loc, 0);
+    });
+
+
+
     this.blankCubeRenderPass.addUniform("uProj",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.projMatrix().all()));
@@ -157,6 +193,11 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.blankCubeRenderPass.addUniform("perlinTime",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform1f(loc, (Date.now() / 400) % (2 * Math.PI));
+    });
+    // TODO: confirm uniform1fv
+    this.blankCubeRenderPass.addUniform("samples",
+      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+        gl.uniform1fv(loc, this.ssaoKernel);
     });
     this.blankCubeRenderPass.setDrawData(this.ctx.TRIANGLES, this.cubeGeometry.indicesFlat().length, this.ctx.UNSIGNED_INT, 0);
     this.blankCubeRenderPass.setup();    
@@ -291,8 +332,148 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.gui.getCamera().setPos(this.playerPosition);
     this.updateLightAndBackground();
     // Drawing
-    const gl: WebGLRenderingContext = this.ctx;
+    const gl: WebGL2RenderingContext = this.ctx;
     const bg: Vec4 = this.backgroundColor;
+
+    // #################################################################################################################
+    // Texture for SSAO
+    // const texture = gl.createTexture();
+    // gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    // const level = 0;
+    // const internalFormat = gl.RGBA;
+    // const border = 0;
+    // const format = internalFormat;
+    // const type = gl.UNSIGNED_BYTE;
+    // const data = null;
+    // gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, textureWidth, textureHeight, border, format, type, data);
+
+    // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    // const fb = gl.createFramebuffer();
+    // gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+
+    // // attach the texture as the first color attachment
+    // const attachmentPoint = gl.COLOR_ATTACHMENT0;
+    // gl.framebufferTexture2D(gl.FRAMEBUFFER, attachmentPoint, gl.TEXTURE_2D, texture, level);
+
+    // create position color buffer
+    let gPosition = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, gPosition);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB16F, textureWidth, textureHeight, 0, gl.RGBA, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    // TODO: confirm if mag filter
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const fbPosition = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbPosition);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, gPosition, 0)
+    // create normal color buffer
+    let gNormal = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, gNormal);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB16F, textureWidth, textureHeight, 0, gl.RGBA, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    // TODO: confirm if mag filter
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    // TODO: confirm why they do not use these two lines
+    // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const fbNormal = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbNormal);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, gNormal, 0)
+    // TODO: confirm if we need COLOR + SPECULAR COLOR BUFFER
+    // TODO: confirm if we need to tell OpenGL which color attachments we'll use (of this framebuffer) for rendering
+    // create a depth renderbuffer 
+    // create and attach depth buffer (renderbuffer)
+    const depthBuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+    // make a depth buffer and the same size as the targetTexture
+    // TODO: cofnirm if DEPTH_COMPONENT16 or DEPTH_COMPONENT
+    // gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, textureWidth, textureHeight);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, textureWidth, textureHeight);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuffer);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    // TODO: confirm if it works
+    let ssaoFBO = gl.createFramebuffer();
+    
+    gl.bindFramebuffer(gl.FRAMEBUFFER, ssaoFBO);
+    // SAO color buffer
+    // let ssaoColorBuffer = gl.createFramebuffer();
+    let ssaoColorBuffer = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, ssaoColorBuffer);
+    
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, textureWidth, textureHeight, 0, gl.RED, gl.FLOAT, null);
+    // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, textureWidth, textureHeight, 0, gl.RGBA, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    // TODO: include or not mag filter
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    // TODO: these two lines are useful? bc they reuse them at the end
+    // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ssaoColorBuffer, 0)
+    
+    let ssaoBlurFBO = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, ssaoBlurFBO);
+    let ssaoColorBufferBlur = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, ssaoColorBufferBlur);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, textureWidth, textureHeight, 0, gl.RED, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    // TODO: include or not mag filter
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    // TODO: these two lines are useful? bc they reuse them at the end
+    // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ssaoColorBufferBlur, 0);
+    // TODO: confirm this
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    // generate sample kernel
+    // TODO: confirm Float32Array or something like this:
+    // const ssaoKernel: number[][] = [];
+    
+    for (let i = 0; i < 64; i++) {
+      let sample = new Vec3([
+        (Math.random() * 2 - 1),
+        (Math.random() * 2 - 1),
+        Math.random()]
+      );
+      sample.normalize();
+      sample.scale(Math.random());
+      
+      let scale: number = i / 64.0; 
+      scale = this.ourLerp(0.1, 1.0, scale * scale);  // No need for 'f' suffix in TypeScript
+      sample = sample.scale(scale)  // Assuming 'sample' is already defined and is a number
+      this.ssaoKernel[i * 3 + 0] = sample.x;
+      this.ssaoKernel[i * 3 + 1] = sample.y;
+      this.ssaoKernel[i * 3 + 2] = sample.z;
+    }
+    
+    // generate noise texture
+    // ----------------------
+    let ssaoNoise: Float32Array = new Float32Array(16 * 3); 
+    for (let i = 0; i < 16; i++)
+    {
+      ssaoNoise[i * 3 + 0] = Math.random() * 2.0 - 1.0; // x
+      ssaoNoise[i * 3 + 1] = Math.random() * 2.0 - 1.0; // y
+      ssaoNoise[i * 3 + 2] = 0.0; // z (rotated around the z-axis in tangent space)
+    }
+    // let noiseTexture = gl.createFramebuffer();
+    let noiseTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, noiseTexture);
+    // We create a 4x4 texture that holds the random rotation vectors; 
+    // TODO: confirm ssaoNoise pointer (&ssaoNoise[0])
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 4, 4, 0, gl.RGB, gl.FLOAT, ssaoNoise);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    // TODO: include or not mag filter
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+
+    // ############################################################################################################ 
+    // TODO: confirm how to continue after the previous
     gl.clearColor(bg.r, bg.g, bg.b, bg.a);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.CULL_FACE);
@@ -303,7 +484,9 @@ export class MinecraftAnimation extends CanvasAnimation {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); // null is the default frame buffer
     this.drawScene(0, 0, 1280, 960);        
   }
-  
+  private ourLerp(a: number, b: number, f: number): number {
+    return a + f * (b - a);
+  }
   private drawScene(x: number, y: number, width: number, height: number): void {
     const gl: WebGLRenderingContext = this.ctx;
     gl.viewport(x, y, width, height);
@@ -316,15 +499,6 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.blankCubeRenderPass.updateAttributeBuffer('aOffset', chunk.cubePositions());
       this.blankCubeRenderPass.drawInstanced(chunk.numCubes());
     });
-  }
-
-  private isNewPositionSafe(position: Vec3, chunks: Chunk[]): boolean {
-    for (let chunk of chunks) {
-      if (chunk.lateralCheck(position, radius, maxHeightToCheck)) {
-        return false;
-      }
-    }
-    return true;
   }
 
   private calculateCurrentVelocity(): Vec3 {
