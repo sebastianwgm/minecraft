@@ -205,3 +205,9 @@ export const blankCubeFSText = `
         
     }
 `;
+
+export const blankCubeVSText = `
+`;
+
+export const blankCubeFSText = `
+`;

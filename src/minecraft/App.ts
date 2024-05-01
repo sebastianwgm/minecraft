@@ -158,6 +158,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform1f(loc, (Date.now() / 400) % (2 * Math.PI));
     });
+
     this.blankCubeRenderPass.setDrawData(this.ctx.TRIANGLES, this.cubeGeometry.indicesFlat().length, this.ctx.UNSIGNED_INT, 0);
     this.blankCubeRenderPass.setup();    
   }
@@ -291,8 +292,226 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.gui.getCamera().setPos(this.playerPosition);
     this.updateLightAndBackground();
     // Drawing
-    const gl: WebGLRenderingContext = this.ctx;
+    const gl: WebGL2RenderingContext = this.ctx;
     const bg: Vec4 = this.backgroundColor;
+    // ################################################################################################################
+    // we attach the depth texture to the depthframebuffer
+    let depth32FTexture = gl.createTexture();
+    let depthFramebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
+    
+    gl.bindTexture(gl.TEXTURE_2D, depth32FTexture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.DEPTH_COMPONENT32F,
+      1280,
+      960,
+      0,
+      gl.DEPTH_COMPONENT,
+      gl.FLOAT,
+      null
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.DEPTH_ATTACHMENT,
+      gl.TEXTURE_2D,
+      depth32FTexture,
+      0
+    );
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    // SSAO Kernel
+    let ssaoKernel: Float32Array = this.generateSSAOKernel(64);
+    // SSAO Noise
+    let ssaoNoise = new Float32Array(16 * 3);
+    for (let i = 0; i < 16; i++)
+    {
+      let sample = new Float32Array([
+      Math.random() * 2.0 - 1.0, 
+      Math.random() * 2.0 - 1.0, 
+      0.0
+      ]);
+      ssaoNoise[i * 3 + 0] = sample[0];
+      ssaoNoise[i * 3 + 1] = sample[1];
+      ssaoNoise[i * 3 + 2] = sample[2];
+    } 
+    let ssaoRGB16NoiseTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, ssaoRGB16NoiseTexture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGB16F,
+      4,
+      4,
+      0,
+      gl.RGB,
+      gl.FLOAT,
+      ssaoNoise
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    // we will create the SSAOFramebuffer and the two SSAO textures at initialization time
+    let ssaoTexture = gl.createTexture();
+    let ssaoBlurredTexture = gl.createTexture();
+    let ssaoFramebuffer = gl.createFramebuffer();
+    // TODO: confirm this:
+    // If the precision isnt enough for good results in your case, then you can also use the gl.R32F 
+    // internal format with gl.FLOAT data type.
+    // raw tex
+    gl.bindTexture(gl.TEXTURE_2D, ssaoTexture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.R8,
+      1280,
+      960,
+      0,
+      gl.RED,
+      gl.UNSIGNED_BYTE,
+      null
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    // blurred tex
+    gl.bindTexture(gl.TEXTURE_2D, ssaoBlurredTexture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.R8,
+      1280,
+      960,
+      0,
+      gl.RED,
+      gl.UNSIGNED_BYTE,
+      null
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    // render loop
+    let screenWidth = 1280;
+    let screenHeight = 960;
+    while(rendering) {
+      // depth pre-pass start
+      gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
+      // issue draw calls for all visible geometry using a depth only shader.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    // depth pre-pass end
+    
+        
+        // SSAO pass start
+        
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.DEPTH_ATTACHMENT,
+            gl.TEXTURE_2D,
+            null,
+            0
+        );
+    // ssaoShaderProgram is the compiled WebGL shader program
+        gl.useProgram(ssaoShaderProgram);
+        gl.uniformMatrix4fv(
+          gl.getUniformLocation(ssaoShaderProgram, `u_projection`),
+          false,
+          camera.getProjectionMatrix()
+        );
+        gl.uniformMatrix4fv(
+          gl.getUniformLocation(ssaoShaderProgram, `u_projection_inverse`),
+          false,
+          camera.getProjectionInverseMatrix()
+        );
+        gl.activeTexture(gl.TEXTURE0 + 0);
+        gl.bindTexture(gl.TEXTURE_2D, depth32FTexture);
+        gl.uniform1i(
+          gl.getUniformLocation(ssaoShaderProgram, `u_depthMap`),
+          0
+        );
+        
+        gl.activeTexture(gl.TEXTURE0 + 1);
+        gl.bindTexture(gl.TEXTURE_2D, ssaoRGB16NoiseTexture);
+        gl.uniform1i(
+          gl.getUniformLocation(ssaoShaderProgram, `u_noise`),
+          1
+        );
+        gl.uniform1f(
+          gl.getUniformLocation(ssaoShaderProgram, `u_sampleRad`),
+          // this the visibility radius in view space
+      0.5
+        );
+        gl.uniform2f(
+          gl.getUniformLocation(ssaoShaderProgram, `u_noiseScale`),
+          screenWidth / 4,
+          screenHeight / 4
+        );
+        gl.uniform3fv(
+          gl.getUniformLocation(ssaoShaderProgram, `u_kernel`),
+          ssaoKernel
+        );
+        gl.framebufferTexture2D(
+          gl.FRAMEBUFFER,
+          gl.COLOR_ATTACHMENT0,
+          gl.TEXTURE_2D,
+          ssaoTexture,
+          0
+        );
+    // here we clear the previously rendered values from the ssao raw texture
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // Here we draw a full screen quad using an already set up Vertex Array Object
+        gl.bindVertexArray(quad_VAO);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    // here we unbind the noise texture from the last active texture slot
+    // i.e gl.TEXTURE0 + 1
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        
+        // Now our SSAO raw texture is populated with occlusion factor data
+        
+        // After this we will use the SSAO raw texture as input and blur the output to
+        // the SSAO blur texture. We will use the gausian blur shader for this. To account
+        // for depth when blurring so that geometry edges are not blurred into other geometry
+    // we can use a bi-lateral blur algorithm which i have not discussed for simplicity.
+        gl.framebufferTexture2D(
+          gl.FRAMEBUFFER,
+          gl.COLOR_ATTACHMENT0,
+          gl.TEXTURE_2D,
+          ssaoBlurredTexture,
+          0
+        );
+    // here we clear the previously rendered values from the ssao blur texture
+        gl.clear(this.COLOR_BUFFER_BIT);
+    // ssaoBlurShaderProgram is the compiled WebGL shader program for applying gausian blur
+        gl.useProgram(ssaoBlurShaderProgram);
+        gl.activeTexture(gl.TEXTURE0 + 0);
+        gl.bindTexture(gl.TEXTURE_2D, ssaoTexture);
+        gl.uniform1i(
+          gl.getUniformLocation(ssaoBlurShaderProgram, `u_ssaoTexture`),
+          0
+        );
+    // we again draw a full screen quad using the previously bound vertex array object
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        
+        // now we finally unbind the vertex array object
+        gl.bindVertexArray(null);
+        
+        // SSAO pass end
+    }
+    // ################################################################################################################
     gl.clearColor(bg.r, bg.g, bg.b, bg.a);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.CULL_FACE);
@@ -303,7 +522,42 @@ export class MinecraftAnimation extends CanvasAnimation {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); // null is the default frame buffer
     this.drawScene(0, 0, 1280, 960);        
   }
-  
+  private ourLerp(a: number, b: number, f: number): number
+  {
+      return a + f * (b - a);
+  }
+  private generateSSAOKernel(sampleCount: number): Float32Array {
+    let kernel = new Float32Array(sampleCount * 3);
+    for (let i = 0; i < sampleCount; ++i) {
+    let sample = new Float32Array([
+      Math.random() * 2.0 - 1.0, 
+      Math.random() * 2.0 - 1.0, 
+      Math.random()
+    ]);
+    // normalize sample
+    let magnitude = Math.sqrt(sample[0] ** 2 + sample[1] ** 2 + sample[2] ** 2);
+    sample[0] /= magnitude;
+    sample[1] /= magnitude;
+    sample[2] /= magnitude;
+    // After normaliztion the sample points lie on the surface of the hemisphere
+    // and each sample point vector has the same length.
+    // We want to randomly change the sample points to sample more 
+    // points inside the hemisphere as close to our fragment as possible.
+    // we will use an accelerating interpolation to do this.
+    let scale = i / sampleCount; 
+    // you can use a standard math library to perform the lerp function or 
+    // write your own.
+    let interpolatedScale = this.ourLerp(0.1, 1.0, scale * scale);
+    sample[0] *= interpolatedScale;
+    sample[1] *= interpolatedScale;
+    sample[2] *= interpolatedScale;
+    kernel[i * 3 + 0] = sample[0];
+    kernel[i * 3 + 1] = sample[1];
+    kernel[i * 3 + 2] = sample[2];  
+    }
+    return kernel;
+  }
+
   private drawScene(x: number, y: number, width: number, height: number): void {
     const gl: WebGLRenderingContext = this.ctx;
     gl.viewport(x, y, width, height);
@@ -316,15 +570,6 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.blankCubeRenderPass.updateAttributeBuffer('aOffset', chunk.cubePositions());
       this.blankCubeRenderPass.drawInstanced(chunk.numCubes());
     });
-  }
-
-  private isNewPositionSafe(position: Vec3, chunks: Chunk[]): boolean {
-    for (let chunk of chunks) {
-      if (chunk.lateralCheck(position, radius, maxHeightToCheck)) {
-        return false;
-      }
-    }
-    return true;
   }
 
   private calculateCurrentVelocity(): Vec3 {
