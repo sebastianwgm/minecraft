@@ -42,6 +42,9 @@ export class GUI implements IGUI {
   private Sdown: boolean;
   private Ddown: boolean;
 
+  // block to be removed in case is valid
+  private blockToRemove: Vec3;
+
   /**
    *
    * @param canvas required to get the width and height of the canvas
@@ -111,14 +114,21 @@ export class GUI implements IGUI {
   }
   
   public dragStart(mouse: MouseEvent): void {
-    this.prevX = mouse.screenX;
-    this.prevY = mouse.screenY;
-    this.dragging = true;
+    // TODO: confirm dragging
+    // if the player press the left button we try to remove the block
+    if (mouse.button == 2) {
+      // logic to modify the chunks
+      this.animation.updateFieldWithRemovedCube(this.blockToRemove);
+    } else {
+      this.prevX = mouse.screenX;
+      this.prevY = mouse.screenY;
+      this.dragging = true;
+    }
   }
   public dragEnd(mouse: MouseEvent): void {
       this.dragging = false;
   }
-  
+
   /**
    * The callback function for a drag event.
    * This event happens after dragStart and
@@ -137,7 +147,9 @@ export class GUI implements IGUI {
         this.camera.rotate(new Vec3([0, 1, 0]), -GUI.rotationSpeed*dx);
         this.camera.rotate(this.camera.right(), -GUI.rotationSpeed*dy);
     }
+    this.selectCube(x, y);
   }
+  
   
   public walkDir(): Vec3
   {
@@ -195,6 +207,11 @@ export class GUI implements IGUI {
       case "KeyL": {
         night_light.change_velocity = Math.max(night_light.change_velocity - 15, 10);
         console.log("Increase the velocity of day/nught, new value:", night_light.change_velocity);
+        break;
+      }
+      // highlights the target cube
+      case "KeyT": {
+        this.animation.showCubes = !this.animation.showCubes;
         break;
       }
       default: {
@@ -256,5 +273,20 @@ export class GUI implements IGUI {
     canvas.addEventListener("contextmenu", (event: any) =>
       event.preventDefault()
     );
+  }
+  // TODO: FIXFIXFIXFIXFIXFIX
+  public selectCube(x: number, y: number): void {
+    const NDCm: Vec4 = new Vec4([(x / this.width) * 2 - 1, 1 - (y / this.height) * 2, -1, 1]);
+    const Projm: Vec4 = this.projMatrix().inverse().multiplyVec4(NDCm);
+    let worldM: Vec4 = this.viewMatrix().inverse().multiplyVec4(Projm);
+    worldM.scale(1 / worldM.w);
+    const ray: Vec3 = Vec3.difference(new Vec3(worldM.xyz), this.camera.pos()).normalize();
+    const origin: Vec3 = this.camera.pos();
+    // TODO: confirm if the value work
+    let radius = 4.0;
+    ray.scale(radius);
+    const blockToRemove: Vec3 = Vec3.sum(origin, ray);
+    this.blockToRemove = new Vec3([Math.round(blockToRemove.x), Math.round(blockToRemove.y), Math.round(blockToRemove.z)]);
+    this.animation.updateCubeToRemove(this.blockToRemove);
   }
 }

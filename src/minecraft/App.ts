@@ -39,6 +39,10 @@ export class MinecraftAnimation extends CanvasAnimation {
   // extras
   private timeForGravity: number;
   private timeForFrames: number;
+  // check if we are showing the cubes that can be removed, from Gui.ts
+  public showCubes: boolean;
+  private deleteTheCube: boolean;
+  private cacheRemoved: number[][];
   
   /*  Cube Rendering */
   private cubeGeometry: Cube;
@@ -56,12 +60,20 @@ export class MinecraftAnimation extends CanvasAnimation {
   private isPlayerOnGround: boolean;
   private speed: Vec3;
   
-  
+  // target cube
+  private selectedTargetCube: boolean;
+  // array for the target cubes
+  private selectedTargetCubeF32: Float32Array;
+
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
 
     this.canvas2d = document.getElementById("textCanvas") as HTMLCanvasElement;
-  
+    // init the delete cube elements
+    this.selectedTargetCube = false;
+    this.showCubes = false;
+    this.cacheRemoved = [];
+
     this.ctx = Debugger.makeDebugContext(this.ctx);
     let gl = this.ctx;
         
@@ -316,15 +328,14 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.blankCubeRenderPass.updateAttributeBuffer('aOffset', chunk.cubePositions());
       this.blankCubeRenderPass.drawInstanced(chunk.numCubes());
     });
-  }
-
-  private isNewPositionSafe(position: Vec3, chunks: Chunk[]): boolean {
-    for (let chunk of chunks) {
-      if (chunk.lateralCheck(position, radius, maxHeightToCheck)) {
-        return false;
-      }
+    
+    // In case we have cubes to highlight and the highlight is on by the user
+    // we show one instance of it
+    if (this.selectedTargetCube && this.showCubes) {
+      this.blankCubeRenderPass.updateAttributeBuffer(
+        'aOffset', this.selectedTargetCubeF32);
+      this.blankCubeRenderPass.drawInstanced(1);
     }
-    return true;
   }
 
   private calculateCurrentVelocity(): Vec3 {
@@ -356,7 +367,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   
   
   public jump() {
-      // If the player is not already in the lair, launch them upwards at 10 units/sec.
+      // If the player is not already in the air, launch them upwards at 10 units/sec.
       if (this.isPlayerOnGround) {
         this.speed = new Vec3([0.0, 10.0, 0.0]);
       }
@@ -396,8 +407,40 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.backgroundColor = this.interpolate(nightColor, dayColor, clampedHeightPercent);
     this.backgroundColor.w = 1.0; // Ensure fully opaque color
   }
+  // TODO:FIXFIXFIXFIXFIXFIXFIXFIXFIXFIX
+  public updateCubeToRemove(blockToRemove: Vec3): void {
+    this.selectedTargetCubeF32 = new Float32Array(4);
+    this.selectedTargetCubeF32.set([blockToRemove.x, blockToRemove.y, blockToRemove.z, 2.0]);
 
-  
+    let isRemovingCube: boolean = false;
+    this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
+      isRemovingCube = isRemovingCube || chunk.selectedCubesUpdate(this.showCubes, blockToRemove);
+    });
+    this.deleteTheCube = isRemovingCube;
+    this.selectedTargetCube = true;
+  }
+
+  public updateFieldWithRemovedCube(selectedCube: Vec3): void {
+      const { x, y, z } = selectedCube;
+      let newCache: number[][] = [];
+      let cubeInCache: boolean = false;
+    
+      for (let logEntry of this.cacheRemoved) {
+          if (logEntry[0] === x && logEntry[1] === y && logEntry[2] === z) {
+            cubeInCache = true;
+          } else {
+            newCache.push(logEntry);
+          }
+      }
+      if (!cubeInCache) {
+        newCache.push([x, y, z]);
+      }
+      this.cacheRemoved = newCache;
+      this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
+        chunk.updateField(this.deleteTheCube, selectedCube);
+      });
+      this.deleteTheCube = !this.deleteTheCube;
+  }
 
 }
 

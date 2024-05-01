@@ -16,12 +16,14 @@ const vecsAdd = [new Vec3([0.0, 0.0, 0.0]),  //0
 export class Chunk {
     private cubes: number; // Number of cubes that should be *drawn* each frame
     private cubePositionsF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
+    private cubePositionsToMineF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
     private x : number; // Center of the chunk
     private y : number;
     private size: number; // Number of cubes along each side of the chunk
     private maxHeightOfField: number = 100; // maximum height for the range of frequencies heights
     private patchHeightMap: Float32Array;
     private opacities: {};
+    private cubePositionToHighlight: number;
 
     // Define interpolation filters
     private topLeft = new Float32Array([9, 3, 3, 1]);
@@ -29,14 +31,15 @@ export class Chunk {
     private bottomLeft = new Float32Array([3, 1, 9, 3]);
     private botoomRight = new Float32Array([1, 3, 3, 9]);
     
-    constructor(centerX : number, centerY : number, size: number) {
+    constructor(centerX : number, centerY : number, size: number) {  
         this.x = centerX;
         this.y = centerY;
         this.size = size;
+        this.cubePositionToHighlight = 0;
         this.cubes = size*size;     
         this.patchHeightMap = new Float32Array(size * size);
         this.opacities = {};
-        this.generateCubes(); 
+        this.generateCubes();   
     }
 
     public getValues(){
@@ -305,6 +308,27 @@ export class Chunk {
                 }
             }
         }
+
+        // Pass the cubes to be mine
+        this.cubePositionsToMineF32 = new Float32Array(4 * numberOfCubes);
+        position = 0;
+        for (let i = 0; i < this.size; i++) {
+            for (let j = 0; j < this.size; j++) {
+                const height = Math.floor(this.patchHeightMap[this.size * i + j]);
+                const idx = this.size * i + j;
+                for (let k = 0; k < height; k++) {
+                    let miningCube = Math.random()
+                    if (miningCube < 0.5) {
+                        const baseIndex = 4 * position;
+                        this.cubePositionsToMineF32[baseIndex] = topleftx + i;
+                        this.cubePositionsToMineF32[baseIndex + 1] = k; 
+                        this.cubePositionsToMineF32[baseIndex + 2] = toplefty + j;
+                        this.cubePositionsToMineF32[baseIndex + 3] = 0;
+                        position++;
+                    }
+                }
+            }
+        }
     }
 
     private smoothmix(a0: number, a1: number, w: number) {
@@ -434,7 +458,84 @@ export class Chunk {
         return this.cubePositionsF32;
     }
 
+    public cubeMiningPositions(): Float32Array {
+        return this.cubePositionsToMineF32;
+    }
+
     public numCubes(): number {
         return this.cubes;
+    }
+
+    public selectedCubesUpdate(showCubes: boolean, blockToRemove: Vec3): boolean {
+        // Calculate bounds of the chunk
+        const topleftX = this.x - this.size / 2;
+        const topleftY = this.y - this.size / 2;
+        const bottomRightX = this.x + this.size / 2;
+        const bottomRightY = this.y + this.size / 2;
+        if (this.cubePositionToHighlight < this.cubes) {
+            this.cubePositionsF32[4 * this.cubePositionToHighlight + 3] = 0; // Reset the highlight value
+        }
+        if (!showCubes) {
+            return false;
+        }
+        if (topleftX > blockToRemove.x || blockToRemove.x >= bottomRightX ||
+            topleftY > blockToRemove.z || blockToRemove.z >= bottomRightY) {
+            return false;
+        }
+        for (let i = 0; i < this.cubes; ++i) {
+            if (this.cubePositionsF32[4 * i] === blockToRemove.x &&
+                this.cubePositionsF32[4 * i + 1] === blockToRemove.y &&
+                this.cubePositionsF32[4 * i + 2] === blockToRemove.z) {
+                this.cubePositionsF32[4 * i + 3] = 3; // Set the highlight value
+                this.cubePositionToHighlight = i;
+                return true; // Indicate successful highlight
+            }
+        }
+
+        return false; // No cube was highlighted
+    }
+
+    public updateField(deleteTheCube: boolean, selectedCube: Vec3): boolean {
+        // Calculate bounds of the chunk
+        const topLeftX = this.x - this.size / 2;
+        const topLeftY = this.y - this.size / 2;
+        const bottomRightX = this.x + this.size / 2;
+        const bottomRightY = this.y + this.size / 2;
+
+        // Check if the selected cube is within the chunk bounds
+        if (topLeftX > selectedCube.x ||
+            selectedCube.x >= bottomRightX ||
+            topLeftY > selectedCube.z ||
+            selectedCube.z >= bottomRightY) {
+            return false;
+        }
+
+        // Update the number of cubes based on whether we are adding or removing a cube
+        let updatedCubes = this.cubes + (deleteTheCube ? -1 : 1);
+
+        // Create a new array to store updated cube positions
+        let updatedPositionsF32 = new Float32Array(4 * updatedCubes);
+        let index = 0;  // Index for new positions array
+
+        for (let i = 0; i < this.cubes; ++i) {
+            // Skip the cube to be removed
+            if (deleteTheCube && this.cubePositionsF32[4 * i] === selectedCube.x &&
+                this.cubePositionsF32[4 * i + 1] === selectedCube.y &&
+                this.cubePositionsF32[4 * i + 2] === selectedCube.z) {
+                continue;
+            }
+            // Copy current cube to new position array
+            updatedPositionsF32.set(this.cubePositionsF32.subarray(4 * i, 4 * i + 4), 4 * index);
+            index++;
+        }
+
+        // Add the new cube if not removing
+        if (!deleteTheCube) {
+            updatedPositionsF32.set([selectedCube.x, selectedCube.y, selectedCube.z, 3], 4 * index);
+            this.cubePositionToHighlight = index;  // Update highlighted position index
+        }
+        this.cubePositionsF32 = updatedPositionsF32;
+        this.cubes = updatedCubes;
+        return true;
     }
 }

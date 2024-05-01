@@ -13,10 +13,15 @@ export const blankCubeVSText = `
     varying vec4 normal;
     varying vec4 wsPos;
     varying vec2 uv;
+    varying float cubeToHighlight;
 
     void main () {
 
-        gl_Position = uProj * uView * (aVertPos + aOffset);
+        // gl_Position = uProj * uView * (aVertPos + aOffset);
+        vec4 offset = vec4(aOffset.x, aOffset.y, aOffset.z, 0.0);
+        cubeToHighlight = aOffset.w;
+        gl_Position = uProj * uView * (aVertPos + offset);
+
         wsPos = aVertPos + aOffset;
         normal = normalize(aNorm);
         uv = aUV;
@@ -33,6 +38,7 @@ export const blankCubeFSText = `
     varying vec4 normal;
     varying vec4 wsPos;
     varying vec2 uv;
+    varying float cubeToHighlight;
 
     float random (in vec2 pt, in float seed) {
         return fract(sin( (seed + dot(pt.xy, vec2(12.9898,78.233))))*43758.5453123);
@@ -188,19 +194,26 @@ export const blankCubeFSText = `
         vec4 lightDirection = uLightPos - wsPos;
         float dot_nl = dot(normalize(lightDirection), normalize(normal));
         dot_nl = clamp(dot_nl, 0.0, 1.0);
-        
-        if (wsPos.y < 30.5) {
-            vec3 textureColor = vec3(180.0, 87.0, 15.0) / 256.0;
-            vec3 varyingTexture = textureColor * timeVarying;
-            gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* varyingTexture, 1.0);
-        } else if (wsPos.y < 35.5) {
-            vec3 color = vec3(144.0 / 256.0, 238.0 / 256.0, 144.0 / 256.0);
-            vec3 marbleTexture = color * marble;
-            gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* marbleTexture, 1.0);
+        if (cubeToHighlight >= 2.0 - 0.1) {
+            if (cubeToHighlight >= 2.0 - 0.1 && cubeToHighlight <= 2.0 + 0.1) { 
+                gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+            } else {
+                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            }
         } else {
-            vec3 color = vec3(169.0 / 256.0, 163.0 / 256.0, 163.0 / 256.0);
-            vec3 woodTexture = wood * color;
-            gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
+            if (wsPos.y < 30.5) {
+                vec3 textureColor = vec3(180.0, 87.0, 15.0) / 256.0;
+                vec3 varyingTexture = textureColor * timeVarying;
+                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* varyingTexture, 1.0);
+            } else if (wsPos.y < 35.5) {
+                vec3 color = vec3(144.0 / 256.0, 238.0 / 256.0, 144.0 / 256.0);
+                vec3 marbleTexture = color * marble;
+                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* marbleTexture, 1.0);
+            } else {
+                vec3 color = vec3(169.0 / 256.0, 163.0 / 256.0, 163.0 / 256.0);
+                vec3 woodTexture = wood * color;
+                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
+            }
         }
         
     }
