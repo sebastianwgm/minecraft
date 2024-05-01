@@ -52,6 +52,10 @@ export class RenderPass {
     this.texture = 0;
   }
 
+  public getVAO(): WebGLVertexArrayObject {
+    return this.VAO;
+  }
+
   public setup() {
     const gl: WebGL2RenderingContext = this.ctx;
     this.shaderProgram = WebGLUtilities.createProgram(gl, this.vShader, this.fShader);
