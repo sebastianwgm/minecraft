@@ -14,11 +14,22 @@ import { RenderPass } from "../lib/webglutils/RenderPass.js";
 import { Camera } from "../lib/webglutils/Camera.js";
 import { Cube } from "./Cube.js";
 import { Chunk } from "./Chunk.js";
+import { Lsystems } from "./LSystemsFractals.js";
 
 const sizeOfTerrain = 64.0;
 const radius = 0.4;
 const maxHeightToCheck = 2.0;
 const gravity = -9.8;
+
+const LSys1StartString = "FFFA";
+const LSys1Rules = new Map<string, string>();
+LSys1Rules.set("A","/F[&&FFA]L///[&&FFA]///[&FFA]/////[&FFLA]");
+LSys1Rules.set("F","\\^S//F");
+LSys1Rules.set("S", "FL");
+LSys1Rules.set("L", "[^^-/+f|-f+f+f]");
+LSys1Rules.set("M", "[//^^&ff-ff-]");
+const LSys1TurnAngle = 18;
+const LSys1SegmentLength = 0.2; // TODO: Should we change this to 0.2?
 
 export class night_light {
   public static change_velocity : number = 240;
@@ -59,6 +70,8 @@ export class MinecraftAnimation extends CanvasAnimation {
   private playerPosition: Vec3;
   private isPlayerOnGround: boolean;
   private speed: Vec3;
+
+  private lSystem: Lsystems;
   
   // target cube
   private selectedTargetCube: boolean;
@@ -79,9 +92,12 @@ export class MinecraftAnimation extends CanvasAnimation {
         
     this.gui = new GUI(this.canvas2d, this);
     this.playerPosition = this.gui.getCamera().pos();
+
+    this.lSystem = new Lsystems(LSys1StartString, LSys1Rules, LSys1SegmentLength, LSys1TurnAngle);
+    this.lSystem.processForDepth(5);
     
     // Generate initial landscape
-    this.chunk = new Chunk(0.0, 0.0, 64);
+    this.chunk = new Chunk(0.0, 0.0, 64, this.playerPosition, this.lSystem);
     this.stackOfChunks = new Map();
     this.cacheHash  = new Map();
     this.cacheLimit = 9;
@@ -194,7 +210,7 @@ export class MinecraftAnimation extends CanvasAnimation {
             } else if (cacheChunk) {
               createNewChunks.set(key, cacheChunk);
             } else {
-              const newChunk = new Chunk(xCoord, zCoord, chunkSize);
+              const newChunk = new Chunk(xCoord, zCoord, chunkSize, this.playerPosition, this.lSystem);
               createNewChunks.set(key, newChunk);
             }
             // if the block is in the position 4 it means it is the center of the character
@@ -445,6 +461,10 @@ export class MinecraftAnimation extends CanvasAnimation {
 }
 
 export function initializeCanvas(): void {
+  // let rules = new Map<string, string>();
+  // rules.set("F", "F+F-F-FF+F+F-F");
+  // let lsys = new Lsystems("F", rules, 1, 90);
+  // lsys.processForDepth(2);
   const canvas = document.getElementById("glCanvas") as HTMLCanvasElement;
   /* Start drawing */
   const canvasAnimation: MinecraftAnimation = new MinecraftAnimation(canvas);

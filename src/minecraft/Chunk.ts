@@ -1,5 +1,6 @@
-import { Mat3, Mat4, Vec2, Vec3, Vec4 } from "../lib/TSM.js";
+import { Mat3, Mat4, Quat, Vec2, Vec3, Vec4 } from "../lib/TSM.js";
 import Rand from "../lib/rand-seed/Rand.js"
+import { Lsystems } from "./LSystemsFractals.js";
 
 const perlin3D = true;
 const seed = 10.0;
@@ -24,6 +25,8 @@ export class Chunk {
     private patchHeightMap: Float32Array;
     private opacities: {};
     private cubePositionToHighlight: number;
+    private lSystem: Lsystems;
+    private playerPosition: Vec3;
 
     // Define interpolation filters
     private topLeft = new Float32Array([9, 3, 3, 1]);
@@ -31,7 +34,7 @@ export class Chunk {
     private bottomLeft = new Float32Array([3, 1, 9, 3]);
     private botoomRight = new Float32Array([1, 3, 3, 9]);
     
-    constructor(centerX : number, centerY : number, size: number) {  
+    constructor(centerX : number, centerY : number, size: number, playerPos: Vec3, lSystem: Lsystems) {
         this.x = centerX;
         this.y = centerY;
         this.size = size;
@@ -39,7 +42,9 @@ export class Chunk {
         this.cubes = size*size;     
         this.patchHeightMap = new Float32Array(size * size);
         this.opacities = {};
-        this.generateCubes();   
+        this.playerPosition = playerPos;
+        this.lSystem = lSystem;
+        this.generateCubes(); 
     }
 
     public getValues(){
@@ -279,16 +284,35 @@ export class Chunk {
             }
         }
 
+        let highestCubeLocation = [0,0];
+        let maxHeight = 0;
+
         let numberOfCubes = 0;
         for (let i = 0; i < this.size; i++) {
             for (let j = 0; j < this.size; j++) {
                 const idx = this.size * i + j;
                 const height = this.patchHeightMap[idx]; 
+                if (height > maxHeight)
+                {
+                    highestCubeLocation = [i,j];
+                    maxHeight = height;
+                }
                 numberOfCubes += this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
             }
         }
 
+        console.log("Max height:", maxHeight, " at location: ", highestCubeLocation);
+
+        // // Pass the cubes to be drawn
+        // numberOfCubes += numOfTreeCubes
+        // let numOfTreeCubes = 0;
+        let tree1 = this.lSystem.getBranches();
+
         // Pass the cubes to be drawn
+        let origCubes = numberOfCubes;
+        numberOfCubes += tree1.length;
+
+        // numberOfCubes += numOfTreeCubes;
         this.cubes = numberOfCubes;
         this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
         let position = 0;
@@ -307,6 +331,55 @@ export class Chunk {
                     }
                 }
             }
+        }
+
+
+        // this.cubes = numberOfCubes;
+        // this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
+
+        console.log("Playerpos: ", this.playerPosition);
+
+        let maxMoves = this.lSystem.getMaxMoves();
+        let lSystemSegLength = this.lSystem.getSegmentLength();
+        // let position = 4*origCubes;
+        for (const branch of tree1) {
+            // let branchDirWithLen = Vec3.difference(branch.getEnd(), branch.getStart());
+            // let branchDir = branchDirWithLen.copy().normalize();
+            // let branchLen = branchDirWithLen.length();
+            // let branchScaling = (maxMoves-branch.getNumOfMoves()-1)/6; // TODO: Why 6?
+            // let rotQuat = Quat.rotationTo(new Vec3([0,1,0]), branchDir);
+            // let rotMat = rotQuat.toMat4();
+            // let transmat = Mat4.identity.copy().translate(branch.getStart());
+
+            // let numSegments = branchLen/lSystemSegLength;
+
+            // let transformedMat = Mat4.identity.copy().scale(new Vec3([branchScaling, numSegments, branchScaling]));
+            // rotMat.multiply(transformedMat, transformedMat);
+            // transmat.multiply(transformedMat, transformedMat);
+
+            const maxHeightLocIdx = this.size * highestCubeLocation[0] + highestCubeLocation[1];
+            const baseIndex = 4 * position;
+            this.cubePositionsF32[baseIndex] = topleftx + highestCubeLocation[0] + branch.getStart().x;
+            this.cubePositionsF32[baseIndex + 1] = this.patchHeightMap[maxHeightLocIdx] + branch.getStart().y;
+            this.cubePositionsF32[baseIndex + 2] = toplefty + highestCubeLocation[1] + branch.getStart().z;
+            this.cubePositionsF32[baseIndex + 3] = 0;
+
+            // let posVec = transformedMat.multiplyVec3(this.playerPosition);
+
+            // this.cubePositionsF32[baseIndex] = posVec.x;
+            // this.cubePositionsF32[baseIndex + 1] = posVec.y;
+            // this.cubePositionsF32[baseIndex + 2] = posVec.z;
+            // this.cubePositionsF32[baseIndex + 3] = 0;
+
+            // this.cubePositionsF32[baseIndex] = this.playerPosition.x + branch.getStart().x;
+            // this.cubePositionsF32[baseIndex + 1] = this.playerPosition.y + branch.getStart().y;
+            // this.cubePositionsF32[baseIndex + 2] = this.playerPosition.z + branch.getStart().z;
+            // this.cubePositionsF32[baseIndex + 3] = 0;
+
+            // console.log(this.playerPosition.x, transformedMat.at(0), this.playerPosition.y, transformedMat.at(1), this.playerPosition.z, transformedMat.at(2));
+            // console.log(posVec.x, posVec.y, posVec.z, this.playerPosition);
+            
+            position++;
         }
 
         // Pass the cubes to be mine

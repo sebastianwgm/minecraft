@@ -290,6 +290,41 @@ export class Quat {
     return dest;
   }
 
+  // TODO: Code mostly taken from gl-matrix quat
+  public static rotationTo(fromVec: Vec3, toVec: Vec3, dest?: Quat): Quat {
+    if (!dest) {
+      dest = new Quat();
+    }
+
+    fromVec.normalize();
+    toVec.normalize();
+
+    let dot = Vec3.dot(fromVec, toVec);
+
+    if (dot < -0.999999) {
+      let tempVec = Vec3.cross(new Vec3([1,0,0]), fromVec);
+      if (tempVec.length() < 0.000001)
+      {
+        tempVec = Vec3.cross(new Vec3([0,1,0]), fromVec);
+      }
+      tempVec.normalize();
+      dest = Quat.fromAxisAngle(tempVec, Math.PI);
+    } else if (dot > 0.999999) {
+      dest.x = 0;
+      dest.y = 0;
+      dest.z = 0;
+      dest.w = 1;
+    } else {
+      let tempVec = Vec3.cross(fromVec, toVec);
+      dest.x = tempVec.x;
+      dest.y = tempVec.y;
+      dest.z = tempVec.z;
+      dest.w = 1 + dot;
+      dest.normalize();
+    }
+    return dest;
+  }
+
   private values = new Float32Array(4);
 
   /**
