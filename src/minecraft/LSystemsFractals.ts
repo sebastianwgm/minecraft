@@ -37,6 +37,16 @@ export class Lsystems {
         return this.turtleMaxMoves;
     }
 
+    private getrandAngle(): number{
+        let p = Math.random();
+        if(p>0&&p<0.2){return this.turnAngle/1.4;}
+        else if(p>0.2&&p<0.4){return this.turnAngle/1.2;}
+        else if(p>0.4&&p<0.6){return this.turnAngle;}
+        else if(p>0.6&&p<0.8){return this.turnAngle*1.2;}
+        return this.turnAngle*1.4;
+    }
+
+
     // This includes both: expanding the expression string in the L system, and drawing out the resultant string
     public processForDepth(depth: number) {
         let stringAtDepth: string;
@@ -57,6 +67,9 @@ export class Lsystems {
         let stack = new Array();
         for (const char of stringAtDepth) {
             switch(char) {
+                case "*": // We wanna mark the previous branch as a leaf
+                    this.branches[this.branches.length-1].markAsLeaf();
+                    break;
                 case "F": // Move forward while drawing
                     // TODO: Record the tree branch
                     let startBranch = this.turtle.getPos().copy();
@@ -70,22 +83,22 @@ export class Lsystems {
                     this.turtleMaxMoves = Math.max(this.turtle.getMoves(), this.turtleMaxMoves);
                     break;
                 case "+": // Turn left by some angle
-                    this.turtle.rotateAxisUp(this.turnAngle);
+                    this.turtle.rotateAxisUp(this.getrandAngle());
                     break;
                 case "-": // Turn right by some angle
-                    this.turtle.rotateAxisUp(-1*this.turnAngle);
+                    this.turtle.rotateAxisUp(-1*this.getrandAngle());
                     break;
                 case "&": // Pitch down by some angle
-                    this.turtle.rotateAxisLeft(this.turnAngle);
+                    this.turtle.rotateAxisLeft(this.getrandAngle());
                     break;
                 case "^": // Pitch up by some angle
-                    this.turtle.rotateAxisLeft(-1*this.turnAngle);
+                    this.turtle.rotateAxisLeft(-1*this.getrandAngle());
                     break;
                 case "\\": // Roll left by some angle
-                    this.turtle.rotateAxisHeading(this.turnAngle);
+                    this.turtle.rotateAxisHeading(this.getrandAngle());
                     break;
                 case "/": // Roll right by some angle
-                    this.turtle.rotateAxisHeading(-1*this.turnAngle);
+                    this.turtle.rotateAxisHeading(-1*this.getrandAngle());
                     break;
                 case "|": // Turn around
                     // TODO: check
@@ -218,11 +231,13 @@ class TreeBranch {
     private start: Vec3;
     private end: Vec3;
     private numOfMoves: number;
+    private leaf: boolean;
 
     constructor(start: Vec3, end: Vec3, numOfMoves: number) {
         this.start = start;
         this.end = end;
         this.numOfMoves = numOfMoves;
+        this.leaf = false;
     }
 
     public getStart(): Vec3 {
@@ -235,5 +250,13 @@ class TreeBranch {
 
     public getNumOfMoves(): number {
         return this.numOfMoves;
+    }
+
+    public markAsLeaf() {
+        this.leaf = true;
+    }
+
+    public isLeaf(): boolean {
+        return this.leaf;
     }
 }

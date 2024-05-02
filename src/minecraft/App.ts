@@ -21,15 +21,39 @@ const radius = 0.4;
 const maxHeightToCheck = 2.0;
 const gravity = -9.8;
 
-const LSys1StartString = "FFFA";
+// const LSys1StartString = "FFFA";
+// const LSys1Rules = new Map<string, string>();
+// LSys1Rules.set("A","/F[&&FFA]L///[&&FFA]///[&FFA]/////[&FF*LA]");
+// LSys1Rules.set("F","\\^S//F");
+// LSys1Rules.set("S", "FL");
+// LSys1Rules.set("L", "[^^-/+f|-f+f+f]");
+// LSys1Rules.set("M", "[//^^&ff-ff-]");
+// const LSys1TurnAngle = 18;
+// const LSys1SegmentLength = 0.2; // TODO: Should we change this to 0.2?
+// const LSys1Depth = 5;
+
+// const LSys1StartString = "A";
+// const LSys1Rules = new Map<string, string>();
+// LSys1Rules.set("A", "[&FL!A]/////[&FL!A]///////[&FL\\A]");
+// // LSys1Rules.set("A","/F[&&FFA]L///[&&FFA]///[&FFA]/////[&FF*LA]");
+// LSys1Rules.set("F","S/////F");
+// LSys1Rules.set("S", "FL");
+// LSys1Rules.set("L", "[∧∧{-f+f+f-|-f+f+f}]");
+// const LSys1TurnAngle = 22.5;
+// const LSys1SegmentLength = 0.2; // TODO: Should we change this to 0.2?
+// const LSys1Depth = 7;
+
+const LSys1StartString = "A";
 const LSys1Rules = new Map<string, string>();
-LSys1Rules.set("A","/F[&&FFA]L///[&&FFA]///[&FFA]/////[&FFLA]");
-LSys1Rules.set("F","\\^S//F");
+LSys1Rules.set("A", "[&FL\\A]/////[&FL\\A]///////[&FL\\A]");
+// LSys1Rules.set("A","/F[&&FFA]L///[&&FFA]///[&FFA]/////[&FF*LA]");
+LSys1Rules.set("F","S/////F");
 LSys1Rules.set("S", "FL");
-LSys1Rules.set("L", "[^^-/+f|-f+f+f]");
-LSys1Rules.set("M", "[//^^&ff-ff-]");
-const LSys1TurnAngle = 18;
+LSys1Rules.set("L", "[^^{-f+f+f-|-f+f+f}]");
+
+const LSys1TurnAngle = 22.5;
 const LSys1SegmentLength = 0.2; // TODO: Should we change this to 0.2?
+const LSys1Depth = 7;
 
 export class night_light {
   public static change_velocity : number = 240;
@@ -72,6 +96,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   private speed: Vec3;
 
   private lSystem: Lsystems;
+  private ctx2: CanvasRenderingContext2D | null;
   
   // target cube
   private selectedTargetCube: boolean;
@@ -82,6 +107,12 @@ export class MinecraftAnimation extends CanvasAnimation {
     super(canvas);
 
     this.canvas2d = document.getElementById("textCanvas") as HTMLCanvasElement;
+    this.ctx2 = this.canvas2d.getContext("2d");
+    if (this.ctx2) {
+      this.ctx2.font = "40px serif";
+      // this.ctx2.fillStyle = "#000000ff";
+      this.ctx2.fillStyle = "#ffffffff";
+    }
     // init the delete cube elements
     this.selectedTargetCube = false;
     this.showCubes = false;
@@ -94,7 +125,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.playerPosition = this.gui.getCamera().pos();
 
     this.lSystem = new Lsystems(LSys1StartString, LSys1Rules, LSys1SegmentLength, LSys1TurnAngle);
-    this.lSystem.processForDepth(5);
+    this.lSystem.processForDepth(LSys1Depth);
     
     // Generate initial landscape
     this.chunk = new Chunk(0.0, 0.0, 64, this.playerPosition, this.lSystem);
@@ -324,6 +355,21 @@ export class MinecraftAnimation extends CanvasAnimation {
     if (checkIfPossible) {
       this.isPlayerOnGround = true;
       this.playerPosition = newPosition;
+    }
+
+    if (this.ctx2) {
+      /// color for background
+      this.ctx2.fillStyle = '#0000004d';
+      this.ctx2.clearRect(0, 0, this.ctx2.canvas.width, this.ctx2.canvas.height);
+      this.ctx2.beginPath();
+      this.ctx2.roundRect(30, 10, 190 , 55, 20);
+      this.ctx2.fill();
+      this.ctx2.beginPath();
+      this.ctx2.roundRect(1060, 10, 180 , 60, 20);
+      this.ctx2.fill();
+      this.ctx2.fillStyle = '#ffffffff';
+      this.ctx2.fillText("Blocks: x", 50, 50);
+      this.ctx2.fillText("Points: x", 1080, 50);
     }
     
     this.gui.getCamera().setPos(this.playerPosition);

@@ -303,7 +303,7 @@ export class Chunk {
             }
         }
 
-        console.log("Max height:", maxHeight, " at location: ", highestCubeLocation);
+        // console.log("Max height:", maxHeight, " at location: ", highestCubeLocation);
 
         // // Pass the cubes to be drawn
         // numberOfCubes += numOfTreeCubes
@@ -342,10 +342,15 @@ export class Chunk {
         // this.cubes = numberOfCubes;
         // this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
 
-        console.log("Playerpos: ", this.playerPosition);
+        // console.log("Playerpos: ", this.playerPosition);
+
+
+        console.log(tree1.length);
 
         let maxMoves = this.lSystem.getMaxMoves();
         let lSystemSegLength = this.lSystem.getSegmentLength();
+        let minTreeHeight = 3000;
+        let maxTreeHeight = 0;
         // let position = 4*origCubes;
         for (const branch of tree1) {
             // let branchDirWithLen = Vec3.difference(branch.getEnd(), branch.getStart());
@@ -369,7 +374,43 @@ export class Chunk {
             this.cubePositionsF32[baseIndex + 2] = toplefty + highestCubeLocation[1] + branch.getStart().z;
             this.cubePositionsF32[baseIndex + 3] = 0;
 
-            this.cubeTypesF32[position] = 1.0;
+            if (branch.getStart().y > maxTreeHeight) {
+                maxTreeHeight = branch.getStart().y;
+            }
+            if (branch.getStart().y < minTreeHeight) {
+                minTreeHeight = branch.getStart().y;
+            }
+
+            // if (branch.isLeaf()) {
+            //     this.cubeTypesF32[position] = 2.0;
+            // }
+            // else {
+            //     this.cubeTypesF32[position] = 1.0;
+            // }
+
+            if (branch.getStart().y < 3.0) {
+                this.cubeTypesF32[position] = 1.0; // brown
+            }
+            else if (branch.getStart().y < 4.0) {
+                // mix of brown and green
+                let rand = Math.random();
+                if (rand < 0.5) {
+                    this.cubeTypesF32[position] = 1.0;
+                }
+                else {
+                    this.cubeTypesF32[position] = 2.0;
+                }
+            }
+            else {
+                this.cubeTypesF32[position] = 2.0; // green
+            }
+
+            // if (branch.isLeaf() || position >= this.origCubes + 100) {
+            //     this.cubeTypesF32[position] = 2.0;
+            // }
+            // else {
+            //     this.cubeTypesF32[position] = 1.0;
+            // }
 
             // let posVec = transformedMat.multiplyVec3(this.playerPosition);
 
@@ -388,6 +429,8 @@ export class Chunk {
             
             position++;
         }
+
+        console.log("Min height: ", minTreeHeight, " max height: ", maxTreeHeight);
 
         // Pass the cubes to be mine
         this.cubePositionsToMineF32 = new Float32Array(4 * numberOfCubes);
