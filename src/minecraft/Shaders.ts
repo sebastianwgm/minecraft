@@ -270,14 +270,14 @@ export const blankCubeFSText = `#version 300 es
         // We can raise the visibility factor to a power to make the transition
         // more sharp. Experiment with the value of this power to see what works best for you.
         // Even after raising visibility to a power > 1, the range still remains between [0.0, 1.0].
-        visibility_factor = pow(visibility_factor, 2.0);
+        visibility_factor = pow(visibility_factor, 5.0);
 
         return visibility_factor;
     }
 
     void main() {
 
-        float visFact = calcVisibilityFactor();
+        // float visFact = calcVisibilityFactor();
 
         vec3 kd = vec3(1.0, 1.0, 1.0);
         vec3 ka = vec3(0.5, 0.5, 0.5);
@@ -304,20 +304,23 @@ export const blankCubeFSText = `#version 300 es
             vec3 textureColor = vec3(180.0, 87.0, 15.0) / 256.0;
             vec3 varyingTexture = textureColor * timeVarying;
             // gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* varyingTexture, 1.0);
-            FragColor = vec4(clamp(ka * visFact + dot_nl * kd, 0.0, 1.0)* varyingTexture, 1.0);
+            FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* varyingTexture, 1.0);
         } else if (wsPos.y < 35.5) {
             vec3 color = vec3(144.0 / 256.0, 238.0 / 256.0, 144.0 / 256.0);
             vec3 marbleTexture = color * marble;
             // gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* marbleTexture, 1.0);
-            FragColor = vec4(clamp(ka * visFact + dot_nl * kd, 0.0, 1.0)* marbleTexture, 1.0);
+            FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* marbleTexture, 1.0);
         } else {
             vec3 color = vec3(169.0 / 256.0, 163.0 / 256.0, 163.0 / 256.0);
             vec3 woodTexture = wood * color;
             // gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
-            FragColor = vec4(clamp(ka * visFact + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
+            FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
         }
 
+        float visFact = calcVisibilityFactor();
+
         // FragColor = vec4(vec3(1.0, 1.0, 1.0) * visFact, 1.0);
+        FragColor = vec4(ka * visFact, 1.0);
         
     }
 `;
@@ -327,3 +330,23 @@ export const blankCubeFSText = `#version 300 es
 
 // export const blankCubeFSText = `
 // `;
+
+export const textureVS = `#version 300 es
+in vec2 a_position; // The position of the vertex
+in vec2 a_texCoord; // The texture coordinate
+out vec2 v_texCoord; // Pass texture coordinate to fragment shader
+
+void main() {
+    v_texCoord = a_texCoord;
+    gl_Position = vec4(a_position, 0.0, 1.0); // Convert from 2D to 4D
+}`;
+
+export const textureFS = `#version 300 es
+precision mediump float;
+uniform sampler2D u_texture; // The texture sampler
+in vec2 v_texCoord; // Interpolated texture coordinate per fragment
+out vec4 outColor; // Output color
+
+void main() {
+    outColor = texture(u_texture, v_texCoord); // Sample the texture
+}`; 

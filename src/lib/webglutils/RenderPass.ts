@@ -56,6 +56,10 @@ export class RenderPass {
     return this.VAO;
   }
 
+  public getProgram(): WebGLProgram {
+    return this.shaderProgram;
+  }
+
   public setup() {
     const gl: WebGL2RenderingContext = this.ctx;
     this.shaderProgram = WebGLUtilities.createProgram(gl, this.vShader, this.fShader);
