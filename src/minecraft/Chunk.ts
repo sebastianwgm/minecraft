@@ -646,7 +646,7 @@ export class Chunk {
     }
     
     // Check if the player new position goes inside any cube
-    public lateralCheck(newPosition: Vec3, radius: number, maxHeightToCheck: number): boolean {
+    public lateralCheck(newPosition: Vec3, radius: number, maxHeightToCheck: number, goldenCubesCount: number, cubesRemoved: number): [boolean, number, number] {
         const topLeftX = this.x - this.size / 2;
         const topLeftZ = this.y - this.size / 2;
         const playerTopY = Math.round(newPosition.y);
@@ -667,7 +667,13 @@ export class Chunk {
                         const height = this.opacities[idx].length;
                         for (let k = 0; k <= 2.0; k ++){
                             if (playerTopY - k < height && this.opacities[idx][playerTopY-k] >= 0) {
-                                return true;
+                                let position = this.highestBlockPos[idx];
+                                if (this.cubeTypesF32[position] != 4.0) {
+                                    return [true, goldenCubesCount, cubesRemoved];
+                                } else {
+                                    return [true, 0, 0];
+                                }
+                                
                             }
                         }
                         
@@ -675,11 +681,11 @@ export class Chunk {
                 }
             }
         }
-        return false;
+        return [false, goldenCubesCount, cubesRemoved];
     }
 
     // augment the Chunk class with logic for determining the minimum vertical position
-    public minimumVerticalPosition(newPosition: Vec3, maxHeightToCheck: number, isAscending: boolean): number{
+    public minimumVerticalPosition(newPosition: Vec3, maxHeightToCheck: number, isAscending: boolean, goldenCubesCount: number, cubesRemoved: number): [number, number, number]{
         const topLeftX = this.x - this.size / 2;
         const topLeftY = this.y - this.size / 2;
         // Calculate adjusted positions relative to chunk coordinates
@@ -687,26 +693,36 @@ export class Chunk {
         const adjustedY = Math.round(newPosition.z - topLeftY);
         // Early boundary check to return quickly for out-of-bound coordinates
         if (!(adjustedX >= 0 && adjustedY >= 0 && adjustedX < this.size && adjustedY < this.size)) {
-            return Number.MIN_SAFE_INTEGER;
+            return [Number.MIN_SAFE_INTEGER, goldenCubesCount, cubesRemoved];
         }
         const idx = adjustedX * this.size + adjustedY;
         const baseY = Math.round(newPosition.y - maxHeightToCheck);
         const topY = Math.round(newPosition.y);
         const height = this.opacities[idx].length;
+        let position = this.highestBlockPos[idx];
         if (isAscending) {
             for (let i = 0; i <= 2.0; i++) {
                 if (baseY + i + 1 < height) {
-                    return baseY + i - 2.5;
+                    if (this.cubeTypesF32[position] != 4.0) {
+                        return [baseY + i - 2.5, goldenCubesCount, cubesRemoved];
+                    } else {
+                        return [baseY + i - 2.5, 0, 0];
+                    }
                 }
             }
         } else {
             for (let i = 0; i <= 2.0; i++) {
                 if (topY - i < height) {
-                    return topY - i + 0.5;
+                    // return [topY - i + 0.5, 0, 0];
+                    if (this.cubeTypesF32[position] != 4.0) {
+                        return [topY - i + 0.5, goldenCubesCount, cubesRemoved];
+                    } else {
+                        return [topY - i + 0.5, 0, 0];
+                    }
                 }
             }
         }
-        return Number.MIN_SAFE_INTEGER;
+        return [Number.MIN_SAFE_INTEGER, goldenCubesCount, cubesRemoved];
     }
 
     public cubePositions(): Float32Array {

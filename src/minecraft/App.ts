@@ -338,7 +338,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       possibles.push(this.stackOfChunks.get(keyNearZBoundary1)!);
       possibles.push(this.stackOfChunks.get(keyNearZBoundary2)!);
     }
-
+    // we update the block where you loose all your point
     let timeElapsed = Math.floor((Date.now() - this.timeForEnemies) / 1000.0);
     if (timeElapsed > 15) {
       timeElapsed = Math.floor((timeElapsed % 16)/2); 
@@ -348,19 +348,17 @@ export class MinecraftAnimation extends CanvasAnimation {
         });
         this.prevTime = timeElapsed;
       }
-      // we update the block where you loose all your point
       
-      // this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
-      //   chunk.updateEnemies(timeElapsed);
-      // });
     }
       
     // predict new position in world
-    newPosition.add(this.gui.walkDir());
+    newPosition.add(this.gui.walkDir().scale(0.3));
     // check if the position is free of collisions
     let exit : boolean = true;
     for (let chunk of possibles) {
-      if (chunk.lateralCheck(newPosition.copy(), radius, maxHeightToCheck)) {
+      let check: boolean;
+      [check, this.goldenCubesCount, this.cubesRemoved] = chunk.lateralCheck(newPosition.copy(), radius, maxHeightToCheck, this.goldenCubesCount, this.cubesRemoved)
+      if (check) {
         exit = false;
         this.playerPosition.x = Math.round(this.playerPosition.x);
         this.playerPosition.z = Math.round(this.playerPosition.z);
@@ -389,7 +387,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     }
     if (this.ctx2) {
       /// color for background
-      this.ctx2.fillStyle = '#0000004d';
+      this.ctx2.fillStyle = '#000000b2';
       this.ctx2.clearRect(0, 0, this.ctx2.canvas.width, this.ctx2.canvas.height);
       this.ctx2.beginPath();
       this.ctx2.roundRect(30, 10, 190 , 55, 20);
@@ -454,7 +452,8 @@ export class MinecraftAnimation extends CanvasAnimation {
 
   private checkVerticalCollisions(position: Vec3, chunk: Chunk, velocity: Vec3): boolean {
     let isAscending = (velocity.y > 0) ? true : false;
-    let height = chunk.minimumVerticalPosition(position, maxHeightToCheck, isAscending);
+    let height: number;
+    [height, this.goldenCubesCount, this.cubesRemoved] = chunk.minimumVerticalPosition(position, maxHeightToCheck, isAscending, this.goldenCubesCount, this.cubesRemoved);
     if (height != Number.MIN_SAFE_INTEGER) {
       this.playerPosition.y = height + maxHeightToCheck;
       this.isPlayerOnGround = true;
