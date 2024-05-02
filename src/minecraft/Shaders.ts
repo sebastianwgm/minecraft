@@ -199,13 +199,17 @@ export const blankCubeFSText = `
         vec4 lightDirection = uLightPos - wsPos;
         float dot_nl = dot(normalize(lightDirection), normalize(normal));
         dot_nl = clamp(dot_nl, 0.0, 1.0);
-        if (cubeType == 0.0) {
+        if (cubeType == 0.0 || cubeType == 3.0) {
             if (cubeToHighlight >= 2.0 - 0.1) {
                 if (cubeToHighlight >= 2.0 - 0.1 && cubeToHighlight <= 2.0 + 0.1) { 
                     gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
                 } else {
                     gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
                 }
+            } else if (cubeType == 3.0) {
+                vec3 golden_color = vec3(255.0/255.0, 234.0/255.0, 0.0/255.0); // Golden for blocks to be removed
+                vec3 woodTexture = wood * golden_color;
+                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
             } else {
                 if (wsPos.y < 30.5) {
                     vec3 textureColor = vec3(180.0, 87.0, 15.0) / 256.0;
@@ -221,15 +225,17 @@ export const blankCubeFSText = `
                     gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
                 }
             }
-        }
+        } else if (cubeType == 1.0) {
 
-        else if (cubeType == 1.0) {
             gl_FragColor = vec4(83.0/255.0, 46.0/255.0, 24.0/255.0, 1.0); // Tree Brown
-        }
-
-        else if (cubeType == 2.0) {
+        } else if (cubeType == 2.0) {
             gl_FragColor = vec4(103.0/255.0, 159.0/255.0, 8.0/255.0, 1.0); // Tree Green
-        }
+        } 
+        // else if (cubeType == 3.0) {
+        //     vec3 golden_color = vec3(255.0/255.0, 234.0/255.0, 0.0/255.0); // Golden for blocks to be removed
+        //     vec3 woodTexture = wood * golden_color;
+        //     gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
+        // }
                 
     }
 `;

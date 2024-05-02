@@ -19,7 +19,6 @@ export class Chunk {
     private origCubes: number;
     private cubePositionsF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
     private cubeTypesF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
-    private cubePositionsToMineF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
     private x : number; // Center of the chunk
     private y : number;
     private size: number; // Number of cubes along each side of the chunk
@@ -29,6 +28,7 @@ export class Chunk {
     private cubePositionToHighlight: number;
     private lSystem: Lsystems;
     private playerPosition: Vec3;
+    private goldenCubesCount: number; // to count the number of golden cubes
 
     // Define interpolation filters
     private topLeft = new Float32Array([9, 3, 3, 1]);
@@ -47,6 +47,7 @@ export class Chunk {
         this.playerPosition = playerPos;
         this.lSystem = lSystem;
         this.generateCubes(); 
+        this.goldenCubesCount = 0;
     }
 
     public getValues(){
@@ -303,7 +304,7 @@ export class Chunk {
             }
         }
 
-        console.log("Max height:", maxHeight, " at location: ", highestCubeLocation);
+        // console.log("Max height:", maxHeight, " at location: ", highestCubeLocation);
 
         // // Pass the cubes to be drawn
         // numberOfCubes += numOfTreeCubes
@@ -330,8 +331,13 @@ export class Chunk {
                         this.cubePositionsF32[baseIndex + 1] = k; 
                         this.cubePositionsF32[baseIndex + 2] = toplefty + j;
                         this.cubePositionsF32[baseIndex + 3] = 0;
-
-                        this.cubeTypesF32[position] = 0.0;
+                        // logic to draw golden cube, 3.0 for golden
+                        if (position % 64 == 0 && position < this.origCubes && position >= 1000) {
+                            this.cubeTypesF32[position] = 3.0
+                        } else {
+                            this.cubeTypesF32[position] = 0.0;
+                        }
+                        
                         position++;
                     }
                 }
@@ -342,7 +348,7 @@ export class Chunk {
         // this.cubes = numberOfCubes;
         // this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
 
-        console.log("Playerpos: ", this.playerPosition);
+        // console.log("Playerpos: ", this.playerPosition);
 
         let maxMoves = this.lSystem.getMaxMoves();
         let lSystemSegLength = this.lSystem.getSegmentLength();
@@ -387,27 +393,6 @@ export class Chunk {
             // console.log(posVec.x, posVec.y, posVec.z, this.playerPosition);
             
             position++;
-        }
-
-        // Pass the cubes to be mine
-        this.cubePositionsToMineF32 = new Float32Array(4 * numberOfCubes);
-        position = 0;
-        for (let i = 0; i < this.size; i++) {
-            for (let j = 0; j < this.size; j++) {
-                const height = Math.floor(this.patchHeightMap[this.size * i + j]);
-                const idx = this.size * i + j;
-                for (let k = 0; k < height; k++) {
-                    let miningCube = Math.random()
-                    if (miningCube < 0.5) {
-                        const baseIndex = 4 * position;
-                        this.cubePositionsToMineF32[baseIndex] = topleftx + i;
-                        this.cubePositionsToMineF32[baseIndex + 1] = k; 
-                        this.cubePositionsToMineF32[baseIndex + 2] = toplefty + j;
-                        this.cubePositionsToMineF32[baseIndex + 3] = 0;
-                        position++;
-                    }
-                }
-            }
         }
     }
 
@@ -542,10 +527,6 @@ export class Chunk {
         return this.cubeTypesF32;
     }
 
-    public cubeMiningPositions(): Float32Array {
-        return this.cubePositionsToMineF32;
-    }
-
     public numCubes(): number {
         return this.cubes;
     }
@@ -585,7 +566,7 @@ export class Chunk {
         const topLeftY = this.y - this.size / 2;
         const bottomRightX = this.x + this.size / 2;
         const bottomRightY = this.y + this.size / 2;
-
+        
         // Check if the selected cube is within the chunk bounds
         if (topLeftX > selectedCube.x ||
             selectedCube.x >= bottomRightX ||
@@ -594,31 +575,59 @@ export class Chunk {
             return false;
         }
 
+        let removedCubeType: number = 0.0;
+        // save the cube type
+        for (let i = 0; i < this.cubes; ++i) {
+            if (this.cubePositionsF32[4 * i] === selectedCube.x &&
+                this.cubePositionsF32[4 * i + 1] === selectedCube.y &&
+                this.cubePositionsF32[4 * i + 2] === selectedCube.z) {
+                    removedCubeType = this.cubeTypesF32[i];
+            }
+        }
         // Update the number of cubes based on whether we are adding or removing a cube
         let updatedCubes = this.cubes + (deleteTheCube ? -1 : 1);
 
         // Create a new array to store updated cube positions
         let updatedPositionsF32 = new Float32Array(4 * updatedCubes);
+        let updatedCubeTypes = new Float32Array(updatedCubes);
         let index = 0;  // Index for new positions array
-
+        console.log("this.goldenCubesCount 1", this.goldenCubesCount);
         for (let i = 0; i < this.cubes; ++i) {
             // Skip the cube to be removed
             if (deleteTheCube && this.cubePositionsF32[4 * i] === selectedCube.x &&
                 this.cubePositionsF32[4 * i + 1] === selectedCube.y &&
                 this.cubePositionsF32[4 * i + 2] === selectedCube.z) {
+                    console.log("this.cubeTypesF32[index]", this.cubeTypesF32[index]);
+                    
+                    if (this.cubeTypesF32[index] == 3.0) {
+                        this.goldenCubesCount += 1;
+                    }
                 continue;
             }
+            
             // Copy current cube to new position array
             updatedPositionsF32.set(this.cubePositionsF32.subarray(4 * i, 4 * i + 4), 4 * index);
+            // copy current cube to the new cube type array
+            updatedCubeTypes[index] = this.cubeTypesF32[index];
             index++;
         }
+        console.log("this.goldenCubesCount2", this.goldenCubesCount);
 
         // Add the new cube if not removing
         if (!deleteTheCube) {
             updatedPositionsF32.set([selectedCube.x, selectedCube.y, selectedCube.z, 3], 4 * index);
             this.cubePositionToHighlight = index;  // Update highlighted position index
+            console.log("removedCubeType", removedCubeType);
+            updatedCubeTypes[index] = 0.0;
+            // TODO: make hashmap if yoy have time to re-render the golden v
+            // if (index % 64 == 0 && index < this.origCubes && index >= 1000) {
+            //     updatedCubeTypes[index] = 3.0
+            // } else {
+            //     updatedCubeTypes[index] = 0.0;
+            // }
         }
         this.cubePositionsF32 = updatedPositionsF32;
+        this.cubeTypesF32 = updatedCubeTypes;
         this.cubes = updatedCubes;
         return true;
     }

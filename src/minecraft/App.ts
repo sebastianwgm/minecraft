@@ -124,6 +124,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.playerPosition = this.gui.getCamera().pos();
       
   }
+
   
   /**
    * Sets up the blank cube drawing
@@ -169,8 +170,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       undefined,
       new Float32Array(0)
     );
-
-    this.blankCubeRenderPass.addInstancedAttribute("aCubeType",
+      this.blankCubeRenderPass.addInstancedAttribute("aCubeType",
       1,
       this.ctx.FLOAT,
       false,
@@ -178,7 +178,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       0,
       undefined,
       new Float32Array(0)
-    );
+      );
 
     this.blankCubeRenderPass.addUniform("uLightPos",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
@@ -329,6 +329,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.gui.getCamera().setPos(this.playerPosition);
     this.updateLightAndBackground();
     // Drawing
+    
     const gl: WebGLRenderingContext = this.ctx;
     const bg: Vec4 = this.backgroundColor;
     gl.clearColor(bg.r, bg.g, bg.b, bg.a);
@@ -355,6 +356,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.blankCubeRenderPass.updateAttributeBuffer('aCubeType', chunk.cubeTypes());
       this.blankCubeRenderPass.drawInstanced(chunk.numCubes());
     });
+    
     
     // In case we have cubes to highlight and the highlight is on by the user
     // we show one instance of it

@@ -283,7 +283,7 @@ export class GUI implements IGUI {
     const ray: Vec3 = Vec3.difference(new Vec3(worldM.xyz), this.camera.pos()).normalize();
     const origin: Vec3 = this.camera.pos();
     // TODO: confirm if the value work
-    let radius = 4.0;
+    let radius = 3.0;
     ray.scale(radius);
     const blockToRemove: Vec3 = Vec3.sum(origin, ray);
     this.blockToRemove = new Vec3([Math.round(blockToRemove.x), Math.round(blockToRemove.y), Math.round(blockToRemove.z)]);
