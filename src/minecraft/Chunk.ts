@@ -24,12 +24,12 @@ export class Chunk {
     private size: number; // Number of cubes along each side of the chunk
     private maxHeightOfField: number = 100; // maximum height for the range of frequencies heights
     private patchHeightMap: Float32Array;
+    private highestBlockPos: Float32Array;
     private opacities: {};
     private cubePositionToHighlight: number;
     private lSystem1: Lsystems;
     private lSystem2: Lsystems;
     private playerPosition: Vec3;
-    private goldenCubesCount: number; // to count the number of golden cubes
 
     // Define interpolation filters
     private topLeft = new Float32Array([9, 3, 3, 1]);
@@ -44,12 +44,12 @@ export class Chunk {
         this.cubePositionToHighlight = 0;
         this.cubes = size*size;     
         this.patchHeightMap = new Float32Array(size * size);
+        this.highestBlockPos = new Float32Array(size * size);
         this.opacities = {};
         this.playerPosition = playerPos;
         this.lSystem1 = lSystem1;
         this.lSystem2 = lSystem2;
         this.generateCubes(); 
-        this.goldenCubesCount = 0;
     }
 
     public getValues(){
@@ -341,6 +341,7 @@ export class Chunk {
                 const idx = this.size * i + j;
                 for (let k = 0; k < height; k++) {
                     if (this.drawAtK(i, j, k, height)) {
+                        this.highestBlockPos[idx] = position;
                         const baseIndex = 4 * position;
                         this.cubePositionsF32[baseIndex] = topleftx + i;
                         this.cubePositionsF32[baseIndex + 1] = k; 
@@ -348,17 +349,36 @@ export class Chunk {
                         this.cubePositionsF32[baseIndex + 3] = 0;
                         // logic to draw golden cube, 3.0 for golden
                         if (position % 64 == 0 && position < this.origCubes && position >= 1000) {
-                            this.cubeTypesF32[position] = 3.0
+                            this.cubeTypesF32[position] = 3.0;
                         } else {
                             this.cubeTypesF32[position] = 0.0;
                         }
-                        
                         position++;
                     }
                 }
             }
         }
-
+        position = 0;
+        for (let i = 0; i < this.size; i++) {
+            for (let j = 0; j < this.size; j++) {
+                const height = Math.floor(this.patchHeightMap[this.size * i + j]);
+                const idx = this.size * i + j;
+                for (let k = 0; k < height; k++) {
+                    if (this.drawAtK(i, j, k, height)) {
+                        const baseIndex = 4 * position;
+                        if (this.cubeTypesF32[position] == 3.0) {
+                            let prob = Math.random();  
+                            if (prob < 0.3) {
+                                let idxEnemy = this.size * (i - 1) + j - 1;
+                                let positionEnemy = this.highestBlockPos[idxEnemy];
+                                this.cubeTypesF32[positionEnemy] = 4.0
+                            }
+                        }
+                        position++;
+                    }
+                }
+            }
+        }
 
         // this.cubes = numberOfCubes;
         // this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
@@ -472,6 +492,98 @@ export class Chunk {
         }
 
         // console.log("Min width: ", minTreeWidth, " max width: ", maxTreeWidth, "Min len: ", minTreeLen, " max len: ", maxTreeLen);
+    }
+
+    public updateEnemies(time: number) {
+        let position = 0;
+        let newPositions: number[] = [];
+        for (let i = 0; i < this.size; i++) {
+            for (let j = 0; j < this.size; j++) {
+                const height = Math.floor(this.patchHeightMap[this.size * i + j]);
+                const idx = this.size * i + j;
+                for (let k = 0; k < height; k++) {
+                    if (this.drawAtK(i, j, k, height)) {
+                        const baseIndex = 4 * position;
+                        if (this.cubeTypesF32[position] == 4.0) {
+                            switch(time) {
+                                case 1: {
+                                    this.cubeTypesF32[position] = 0.0; 
+                                    let idxEnemy = this.size * i + (j + 1);
+                                    let positionEnemy = this.highestBlockPos[idxEnemy];
+                                    newPositions.push(positionEnemy);
+                                    // this.cubeTypesF32[positionEnemy] = 4.0;
+                                    break; 
+                                } 
+                                case 2: { 
+                                    this.cubeTypesF32[position] = 0.0; 
+                                    let idxEnemy = this.size * i + (j + 1);
+                                    let positionEnemy = this.highestBlockPos[idxEnemy];
+                                    newPositions.push(positionEnemy);
+                                    // this.cubeTypesF32[positionEnemy] = 4.0;
+                                    break; 
+                                }
+                                case 3: { 
+                                    this.cubeTypesF32[position] = 0.0; 
+                                    let idxEnemy = this.size * (i+1) + j;
+                                    let positionEnemy = this.highestBlockPos[idxEnemy];
+                                    newPositions.push(positionEnemy);
+                                    // this.cubeTypesF32[positionEnemy] = 4.0; 
+                                    break; 
+                                }
+                                case 4: { 
+                                    this.cubeTypesF32[position] = 0.0; 
+                                    let idxEnemy = this.size * (i + 1) + j;
+                                    let positionEnemy = this.highestBlockPos[idxEnemy];
+                                    newPositions.push(positionEnemy);
+                                    // this.cubeTypesF32[positionEnemy] = 4.0; 
+                                    break;  
+                                }
+                                case 5: { 
+                                    this.cubeTypesF32[position] = 0.0; 
+                                    let idxEnemy = this.size * (i) + (j-1);
+                                    let positionEnemy = this.highestBlockPos[idxEnemy];
+                                    newPositions.push(positionEnemy);
+                                    // this.cubeTypesF32[positionEnemy] = 4.0; 
+                                    break;   
+                                }
+                                case 6: {
+                                    this.cubeTypesF32[position] = 0.0; 
+                                    let idxEnemy = this.size * (i) + (j-1);
+                                    let positionEnemy = this.highestBlockPos[idxEnemy];
+                                    newPositions.push(positionEnemy);
+                                    // this.cubeTypesF32[positionEnemy] = 4.0; 
+                                    break;  
+                                }
+                                case 7: {
+                                    this.cubeTypesF32[position] = 0.0; 
+                                    let idxEnemy = this.size * (i-1) + j;
+                                    let positionEnemy = this.highestBlockPos[idxEnemy];
+                                    newPositions.push(positionEnemy);
+                                    // this.cubeTypesF32[positionEnemy] = 4.0; 
+                                    break;   
+                                }
+                                case 0: {
+                                    this.cubeTypesF32[position] = 0.0; 
+                                    let idxEnemy = this.size * (i-1) + j;
+                                    let positionEnemy = this.highestBlockPos[idxEnemy];
+                                    newPositions.push(positionEnemy);
+                                    // this.cubeTypesF32[positionEnemy] = 4.0; 
+                                    break;  
+                                } 
+                                default: {
+                                    break;
+                                }
+                            } 
+                        }
+                        position++;
+                    }
+                }
+            }
+        }
+
+        for (let i = 0; i < newPositions.length; i++) {
+            this.cubeTypesF32[newPositions[i]] = 4.0;
+        }
     }
 
     private smoothmix(a0: number, a1: number, w: number) {
@@ -638,10 +750,10 @@ export class Chunk {
         return false; // No cube was highlighted
     }
 
-    public updateField(deleteTheCube: boolean, selectedCube: Vec3, cubesRemoved: number): number {
+    public updateField(deleteTheCube: boolean, selectedCube: Vec3, goldenCubesCount: number, cubesRemoved: number): [number, number] {
 
         if (!deleteTheCube && cubesRemoved == 0) {
-            return cubesRemoved;
+            return [goldenCubesCount, cubesRemoved];
         }
         // Calculate bounds of the chunk
         const topLeftX = this.x - this.size / 2;
@@ -654,7 +766,7 @@ export class Chunk {
             selectedCube.x >= bottomRightX ||
             topLeftY > selectedCube.z ||
             selectedCube.z >= bottomRightY) {
-            return cubesRemoved;
+            return [goldenCubesCount, cubesRemoved];
         }
 
         let removedCubeType: number = 0.0;
@@ -673,16 +785,13 @@ export class Chunk {
         let updatedPositionsF32 = new Float32Array(4 * updatedCubes);
         let updatedCubeTypes = new Float32Array(updatedCubes);
         let index = 0;  // Index for new positions array
-        console.log("this.goldenCubesCount 1", this.goldenCubesCount);
         for (let i = 0; i < this.cubes; ++i) {
             // Skip the cube to be removed
             if (deleteTheCube && this.cubePositionsF32[4 * i] === selectedCube.x &&
                 this.cubePositionsF32[4 * i + 1] === selectedCube.y &&
                 this.cubePositionsF32[4 * i + 2] === selectedCube.z) {
-                    console.log("this.cubeTypesF32[index]", this.cubeTypesF32[index]);
-                    
                     if (this.cubeTypesF32[index] == 3.0) {
-                        this.goldenCubesCount += 1;
+                        goldenCubesCount += 1;
                     }
                 continue;
             }
@@ -693,13 +802,11 @@ export class Chunk {
             updatedCubeTypes[index] = this.cubeTypesF32[index];
             index++;
         }
-        console.log("this.goldenCubesCount2", this.goldenCubesCount);
 
         // Add the new cube if not removing
         if (!deleteTheCube) {
             updatedPositionsF32.set([selectedCube.x, selectedCube.y, selectedCube.z, 3], 4 * index);
             this.cubePositionToHighlight = index;  // Update highlighted position index
-            console.log("removedCubeType", removedCubeType);
             updatedCubeTypes[index] = 0.0;
             // TODO: make hashmap if yoy have time to re-render the golden v
             // if (index % 64 == 0 && index < this.origCubes && index >= 1000) {
@@ -711,6 +818,6 @@ export class Chunk {
         this.cubePositionsF32 = updatedPositionsF32;
         this.cubeTypesF32 = updatedCubeTypes;
         this.cubes = updatedCubes;
-        return deleteTheCube ? cubesRemoved+1 : cubesRemoved-1;
+        return deleteTheCube ? [goldenCubesCount, cubesRemoved+1] : [goldenCubesCount, cubesRemoved-1];
     }
 }

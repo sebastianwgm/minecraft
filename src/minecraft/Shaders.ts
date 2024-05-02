@@ -176,6 +176,25 @@ export const blankCubeFSText = `
         }
         return noise;
     }
+    // perlin noise for lava
+    vec3 lavaVarying(vec2 uv, float seed) {
+        vec3 R = vec3(92.0 / 256.0, 14.0 / 256.0, 14.0 / 256.0);
+        vec3 L = vec3(186.0, 72.0, 10.0) / 256.0;
+        vec3 B = vec3(234.0,169.0,46.0) / 256.0;
+
+        float noise = 0.0;
+        float frequency = 3.0;
+        float grid_spacing = 2.0;
+        for (int i = 0; i < 4; i++) {
+            noise += (timeVaryingPerlin(uv * frequency, seed, grid_spacing)) * (1.0 / grid_spacing);
+            grid_spacing = grid_spacing * grid_spacing;
+        }
+        if (noise < 0.6) {
+            float w = cos(perlinTime) + 1.0;
+            return L + (B - L) * w * 0.5;
+        }
+        return R * noise;
+    }
 
     void main() {
 
@@ -199,17 +218,25 @@ export const blankCubeFSText = `
         vec4 lightDirection = uLightPos - wsPos;
         float dot_nl = dot(normalize(lightDirection), normalize(normal));
         dot_nl = clamp(dot_nl, 0.0, 1.0);
-        if (cubeType == 0.0 || cubeType == 3.0) {
+        if (cubeType == 0.0 || cubeType == 3.0 || cubeType == 4.0) {
             if (cubeToHighlight >= 2.0 - 0.1) {
                 if (cubeToHighlight >= 2.0 - 0.1 && cubeToHighlight <= 2.0 + 0.1) { 
-                    gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+                    gl_FragColor = vec4(201.0/255.0, 242.0/255.0, 155.0/255.0, 1.0);
                 } else {
-                    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                    gl_FragColor = vec4(238.0/255.0, 75.0/255.0, 43.0/255.0, 1.0);
+                    // gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
                 }
             } else if (cubeType == 3.0) {
+                kd = vec3(0.0, 0.0, 0.0);
+                ka = vec3(1.0, 1.0, 1.0);
                 vec3 golden_color = vec3(255.0/255.0, 234.0/255.0, 0.0/255.0); // Golden for blocks to be removed
                 vec3 woodTexture = wood * golden_color;
                 gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
+            } else if (cubeType == 4.0) {
+                kd = vec3(0.0, 0.0, 0.0);
+                ka = vec3(1.0, 1.0, 1.0);
+                vec3 lava = lavaVarying(uv, seed);
+                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* lava, 1.0);
             } else {
                 if (wsPos.y < 30.5) {
                     vec3 textureColor = vec3(180.0, 87.0, 15.0) / 256.0;

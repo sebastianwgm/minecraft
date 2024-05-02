@@ -74,6 +74,9 @@ export class MinecraftAnimation extends CanvasAnimation {
   // extras
   private timeForGravity: number;
   private timeForFrames: number;
+  private timeForEnemies: number;
+  private prevTime: number;
+
   // check if we are showing the cubes that can be removed, from Gui.ts
   public showCubes: boolean;
   private deleteTheCube: boolean;
@@ -105,6 +108,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   private selectedTargetCubeF32: Float32Array;
 
   private cubesRemoved: number;
+  private goldenCubesCount: number;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -151,6 +155,9 @@ export class MinecraftAnimation extends CanvasAnimation {
     
     this.timeForFrames = Date.now();
     this.timeForGravity = Date.now();
+    this.timeForEnemies = Date.now();
+    this.prevTime = 0;
+    this.goldenCubesCount = 0;
   }
 
   /**
@@ -331,6 +338,23 @@ export class MinecraftAnimation extends CanvasAnimation {
       possibles.push(this.stackOfChunks.get(keyNearZBoundary1)!);
       possibles.push(this.stackOfChunks.get(keyNearZBoundary2)!);
     }
+
+    let timeElapsed = Math.floor((Date.now() - this.timeForEnemies) / 1000.0);
+    if (timeElapsed > 15) {
+      timeElapsed = Math.floor((timeElapsed % 16)/2); 
+      if (this.prevTime != timeElapsed) {
+        this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
+          chunk.updateEnemies(timeElapsed);
+        });
+        this.prevTime = timeElapsed;
+      }
+      // we update the block where you loose all your point
+      
+      // this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
+      //   chunk.updateEnemies(timeElapsed);
+      // });
+    }
+      
     // predict new position in world
     newPosition.add(this.gui.walkDir());
     // check if the position is free of collisions
@@ -363,7 +387,6 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.isPlayerOnGround = true;
       this.playerPosition = newPosition;
     }
-
     if (this.ctx2) {
       /// color for background
       this.ctx2.fillStyle = '#0000004d';
@@ -376,10 +399,9 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.ctx2.fill();
       this.ctx2.fillStyle = '#ffffffff';
       this.ctx2.fillText("Blocks: " + this.cubesRemoved, 50, 50);
-      this.ctx2.fillText("Points: x", 1080, 50);
+      this.ctx2.fillText("Points: " + String(this.goldenCubesCount), 1080, 50);
     }
-
-   this.gui.getCamera().setPos(this.playerPosition);
+    this.gui.getCamera().setPos(this.playerPosition);
     this.updateLightAndBackground();
     // Drawing
     
@@ -518,8 +540,10 @@ export class MinecraftAnimation extends CanvasAnimation {
         newCache.push([x, y, z]);
       }
       this.cacheRemoved = newCache;
+      // TODO: maybe deleted?
+      let gotUpdated: boolean;
       this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
-        this.cubesRemoved = chunk.updateField(this.deleteTheCube, selectedCube, this.cubesRemoved);
+        [this.goldenCubesCount, this.cubesRemoved] = chunk.updateField(this.deleteTheCube, selectedCube, this.goldenCubesCount, this.cubesRemoved);
       });
       this.deleteTheCube = !this.deleteTheCube;
   }
