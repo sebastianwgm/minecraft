@@ -23,13 +23,37 @@ const gravity = -9.8;
 
 const LSys1StartString = "FFFA";
 const LSys1Rules = new Map<string, string>();
-LSys1Rules.set("A","/F[&&FFA]L///[&&FFA]///[&FFA]/////[&FFLA]");
+LSys1Rules.set("A","/F[&&FFA]L///[&&FFA]///[&FFA]/////[&FF*LA]");
 LSys1Rules.set("F","\\^S//F");
 LSys1Rules.set("S", "FL");
 LSys1Rules.set("L", "[^^-/+f|-f+f+f]");
 LSys1Rules.set("M", "[//^^&ff-ff-]");
 const LSys1TurnAngle = 18;
 const LSys1SegmentLength = 0.2; // TODO: Should we change this to 0.2?
+const LSys1Depth = 5;
+
+// const LSys1StartString = "A";
+// const LSys1Rules = new Map<string, string>();
+// LSys1Rules.set("A", "[&FL!A]/////[&FL!A]///////[&FL\\A]");
+// // LSys1Rules.set("A","/F[&&FFA]L///[&&FFA]///[&FFA]/////[&FF*LA]");
+// LSys1Rules.set("F","S/////F");
+// LSys1Rules.set("S", "FL");
+// LSys1Rules.set("L", "[∧∧{-f+f+f-|-f+f+f}]");
+// const LSys1TurnAngle = 22.5;
+// const LSys1SegmentLength = 0.2; // TODO: Should we change this to 0.2?
+// const LSys1Depth = 7;
+
+const LSys2StartString = "A";
+const LSys2Rules = new Map<string, string>();
+LSys2Rules.set("A", "[&FL\\A]/////[&FL\\A]///////[&FL\\A]");
+// LSys1Rules.set("A","/F[&&FFA]L///[&&FFA]///[&FFA]/////[&FF*LA]");
+LSys2Rules.set("F","S/////F");
+LSys2Rules.set("S", "FL");
+LSys2Rules.set("L", "[^^{-f+f+f-|-f+f+f}]");
+
+const LSys2TurnAngle = 22.5;
+const LSys2SegmentLength = 0.2; // TODO: Should we change this to 0.2?
+const LSys2Depth = 7;
 
 export class night_light {
   public static change_velocity : number = 240;
@@ -71,8 +95,9 @@ export class MinecraftAnimation extends CanvasAnimation {
   private isPlayerOnGround: boolean;
   private speed: Vec3;
 
-  private lSystem: Lsystems;
-  
+  private lSystem1: Lsystems;
+  private lSystem2: Lsystems;
+
   // target cube
   private selectedTargetCube: boolean;
   // array for the target cubes
@@ -93,11 +118,14 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.gui = new GUI(this.canvas2d, this);
     this.playerPosition = this.gui.getCamera().pos();
 
-    this.lSystem = new Lsystems(LSys1StartString, LSys1Rules, LSys1SegmentLength, LSys1TurnAngle);
-    this.lSystem.processForDepth(5);
+    this.lSystem1 = new Lsystems(LSys1StartString, LSys1Rules, LSys1SegmentLength, LSys1TurnAngle, LSys1Depth);
+    // this.lSystem1.processForDepth(LSys1Depth);
+
+    this.lSystem2 = new Lsystems(LSys2StartString, LSys2Rules, LSys2SegmentLength, LSys2TurnAngle, LSys2Depth);
+    // this.lSystem2.processForDepth(LSys2Depth);
     
     // Generate initial landscape
-    this.chunk = new Chunk(0.0, 0.0, 64, this.playerPosition, this.lSystem);
+    this.chunk = new Chunk(0.0, 0.0, 64, this.playerPosition, this.lSystem1, this.lSystem2);
     this.stackOfChunks = new Map();
     this.cacheHash  = new Map();
     this.cacheLimit = 9;
@@ -220,7 +248,7 @@ export class MinecraftAnimation extends CanvasAnimation {
             } else if (cacheChunk) {
               createNewChunks.set(key, cacheChunk);
             } else {
-              const newChunk = new Chunk(xCoord, zCoord, chunkSize, this.playerPosition, this.lSystem);
+              const newChunk = new Chunk(xCoord, zCoord, chunkSize, this.playerPosition, this.lSystem1, this.lSystem2);
               createNewChunks.set(key, newChunk);
             }
             // if the block is in the position 4 it means it is the center of the character
@@ -325,8 +353,8 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.isPlayerOnGround = true;
       this.playerPosition = newPosition;
     }
-    
-    this.gui.getCamera().setPos(this.playerPosition);
+
+   this.gui.getCamera().setPos(this.playerPosition);
     this.updateLightAndBackground();
     // Drawing
     

@@ -1,6 +1,6 @@
 import { Mat3, Mat4, Quat, Vec2, Vec3, Vec4 } from "../lib/TSM.js";
 import Rand from "../lib/rand-seed/Rand.js"
-import { Lsystems } from "./LSystemsFractals.js";
+import { Lsystems, TreeBranch } from "./LSystemsFractals.js";
 
 const perlin3D = true;
 const seed = 10.0;
@@ -26,7 +26,8 @@ export class Chunk {
     private patchHeightMap: Float32Array;
     private opacities: {};
     private cubePositionToHighlight: number;
-    private lSystem: Lsystems;
+    private lSystem1: Lsystems;
+    private lSystem2: Lsystems;
     private playerPosition: Vec3;
     private goldenCubesCount: number; // to count the number of golden cubes
 
@@ -36,7 +37,7 @@ export class Chunk {
     private bottomLeft = new Float32Array([3, 1, 9, 3]);
     private botoomRight = new Float32Array([1, 3, 3, 9]);
     
-    constructor(centerX : number, centerY : number, size: number, playerPos: Vec3, lSystem: Lsystems) {
+    constructor(centerX : number, centerY : number, size: number, playerPos: Vec3, lSystem1: Lsystems, lSystem2: Lsystems) {
         this.x = centerX;
         this.y = centerY;
         this.size = size;
@@ -45,7 +46,8 @@ export class Chunk {
         this.patchHeightMap = new Float32Array(size * size);
         this.opacities = {};
         this.playerPosition = playerPos;
-        this.lSystem = lSystem;
+        this.lSystem1 = lSystem1;
+        this.lSystem2 = lSystem2;
         this.generateCubes(); 
         this.goldenCubesCount = 0;
     }
@@ -124,7 +126,6 @@ export class Chunk {
         }
         return newCubePositionsF32Updated;
     }
-    
     
     // Helper function for terrain synthesis
     public terrainSynthesis(size: number, octave: number): Float32Array {
@@ -305,15 +306,29 @@ export class Chunk {
         }
 
         // console.log("Max height:", maxHeight, " at location: ", highestCubeLocation);
+        // console.log("Max height:", maxHeight, " at location: ", highestCubeLocation);
 
         // // Pass the cubes to be drawn
         // numberOfCubes += numOfTreeCubes
         // let numOfTreeCubes = 0;
-        let tree1 = this.lSystem.getBranches();
+
+        let systemChosen: number;
+        let p = Math.random();
+        let tree: TreeBranch[];
+        if (p < 0.5) {
+            this.lSystem1.processForDepth(null);
+            tree = this.lSystem1.getBranches();
+            systemChosen = 1;
+        }
+        else {
+            this.lSystem2.processForDepth(null);
+            tree = this.lSystem2.getBranches();
+            systemChosen = 2;
+        }
 
         // Pass the cubes to be drawn
         this.origCubes = numberOfCubes;
-        numberOfCubes += tree1.length;
+        numberOfCubes += tree.length;
 
         // numberOfCubes += numOfTreeCubes;
         this.cubes = numberOfCubes;
@@ -350,10 +365,15 @@ export class Chunk {
 
         // console.log("Playerpos: ", this.playerPosition);
 
-        let maxMoves = this.lSystem.getMaxMoves();
-        let lSystemSegLength = this.lSystem.getSegmentLength();
+
+        // console.log(tree.length);
+
+        // let maxMoves = this.lSystem.getMaxMoves();
+        // let lSystemSegLength = this.lSystem.getSegmentLength();
+        // let minTreeHeight = 3000;
+        // let maxTreeHeight = 0;
         // let position = 4*origCubes;
-        for (const branch of tree1) {
+        for (const branch of tree) {
             // let branchDirWithLen = Vec3.difference(branch.getEnd(), branch.getStart());
             // let branchDir = branchDirWithLen.copy().normalize();
             // let branchLen = branchDirWithLen.length();
@@ -375,7 +395,47 @@ export class Chunk {
             this.cubePositionsF32[baseIndex + 2] = toplefty + highestCubeLocation[1] + branch.getStart().z;
             this.cubePositionsF32[baseIndex + 3] = 0;
 
-            this.cubeTypesF32[position] = 1.0;
+            // if (branch.getStart().y > maxTreeHeight) {
+            //     maxTreeHeight = branch.getStart().y;
+            // }
+            // if (branch.getStart().y < minTreeHeight) {
+            //     minTreeHeight = branch.getStart().y;
+            // }
+
+            // if (branch.isLeaf()) {
+            //     this.cubeTypesF32[position] = 2.0;
+            // }
+            // else {
+            //     this.cubeTypesF32[position] = 1.0;
+            // }
+
+            if (systemChosen == 2) {
+                if (branch.getStart().y < 3.0) {
+                    this.cubeTypesF32[position] = 1.0; // brown
+                }
+                else if (branch.getStart().y < 4.0) {
+                    // mix of brown and green
+                    let rand = Math.random();
+                    if (rand < 0.5) {
+                        this.cubeTypesF32[position] = 1.0;
+                    }
+                    else {
+                        this.cubeTypesF32[position] = 2.0;
+                    }
+                }
+                else {
+                    this.cubeTypesF32[position] = 2.0; // green
+                }
+            }         
+
+            else {
+                if (branch.isLeaf() || position >= this.origCubes + 100) {
+                    this.cubeTypesF32[position] = 2.0;
+                }
+                else {
+                    this.cubeTypesF32[position] = 1.0;
+                }
+            }
 
             // let posVec = transformedMat.multiplyVec3(this.playerPosition);
 
@@ -393,6 +453,29 @@ export class Chunk {
             // console.log(posVec.x, posVec.y, posVec.z, this.playerPosition);
             
             position++;
+        }
+
+        // console.log("Min height: ", minTreeHeight, " max height: ", maxTreeHeight);
+
+        // Pass the cubes to be mine
+        this.cubePositionsToMineF32 = new Float32Array(4 * numberOfCubes);
+        position = 0;
+        for (let i = 0; i < this.size; i++) {
+            for (let j = 0; j < this.size; j++) {
+                const height = Math.floor(this.patchHeightMap[this.size * i + j]);
+                const idx = this.size * i + j;
+                for (let k = 0; k < height; k++) {
+                    let miningCube = Math.random()
+                    if (miningCube < 0.5) {
+                        const baseIndex = 4 * position;
+                        this.cubePositionsToMineF32[baseIndex] = topleftx + i;
+                        this.cubePositionsToMineF32[baseIndex + 1] = k; 
+                        this.cubePositionsToMineF32[baseIndex + 2] = toplefty + j;
+                        this.cubePositionsToMineF32[baseIndex + 3] = 0;
+                        position++;
+                    }
+                }
+            }
         }
     }
 

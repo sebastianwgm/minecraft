@@ -225,12 +225,20 @@ export const blankCubeFSText = `
                     gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
                 }
             }
-        } else if (cubeType == 1.0) {
-
-            gl_FragColor = vec4(83.0/255.0, 46.0/255.0, 24.0/255.0, 1.0); // Tree Brown
-        } else if (cubeType == 2.0) {
-            gl_FragColor = vec4(103.0/255.0, 159.0/255.0, 8.0/255.0, 1.0); // Tree Green
-        } 
+        }
+        else if (cubeType == 1.0) {
+            vec3 color = vec3(83.0/255.0, 46.0/255.0, 24.0/255.0);
+            vec3 woodTexture = wood * color;
+            gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);// Tree Brown
+            // gl_FragColor = vec4(83.0/255.0, 46.0/255.0, 24.0/255.0, 1.0); // Tree Brown
+        }
+        
+        else if (cubeType == 2.0) {
+            vec3 color = vec3(103.0/255.0, 159.0/255.0, 8.0/255.0);
+            vec3 woodTexture = wood * color;
+            gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);// Tree Green
+            // gl_FragColor = vec4(103.0/255.0, 159.0/255.0, 8.0/255.0, 1.0); // Tree Green
+        }
         // else if (cubeType == 3.0) {
         //     vec3 golden_color = vec3(255.0/255.0, 234.0/255.0, 0.0/255.0); // Golden for blocks to be removed
         //     vec3 woodTexture = wood * golden_color;
