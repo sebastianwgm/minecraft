@@ -372,6 +372,10 @@ export class Chunk {
         // let lSystemSegLength = this.lSystem.getSegmentLength();
         // let minTreeHeight = 3000;
         // let maxTreeHeight = 0;
+        // let minTreeLen = 3000;
+        // let maxTreeLen = 0;
+        // let minTreeWidth = 3000;
+        // let maxTreeWidth = 0;
         // let position = 4*origCubes;
         for (const branch of tree) {
             // let branchDirWithLen = Vec3.difference(branch.getEnd(), branch.getStart());
@@ -400,6 +404,18 @@ export class Chunk {
             // }
             // if (branch.getStart().y < minTreeHeight) {
             //     minTreeHeight = branch.getStart().y;
+            // }
+            // if (branch.getStart().x > maxTreeWidth) {
+            //     maxTreeWidth = branch.getStart().x;
+            // }
+            // if (branch.getStart().x < minTreeWidth) {
+            //     minTreeWidth = branch.getStart().x;
+            // }
+            // if (branch.getStart().z > maxTreeLen) {
+            //     maxTreeLen = branch.getStart().z;
+            // }
+            // if (branch.getStart().z < minTreeLen) {
+            //     minTreeLen = branch.getStart().z;
             // }
 
             // if (branch.isLeaf()) {
@@ -455,28 +471,7 @@ export class Chunk {
             position++;
         }
 
-        // console.log("Min height: ", minTreeHeight, " max height: ", maxTreeHeight);
-
-        // Pass the cubes to be mine
-        this.cubePositionsToMineF32 = new Float32Array(4 * numberOfCubes);
-        position = 0;
-        for (let i = 0; i < this.size; i++) {
-            for (let j = 0; j < this.size; j++) {
-                const height = Math.floor(this.patchHeightMap[this.size * i + j]);
-                const idx = this.size * i + j;
-                for (let k = 0; k < height; k++) {
-                    let miningCube = Math.random()
-                    if (miningCube < 0.5) {
-                        const baseIndex = 4 * position;
-                        this.cubePositionsToMineF32[baseIndex] = topleftx + i;
-                        this.cubePositionsToMineF32[baseIndex + 1] = k; 
-                        this.cubePositionsToMineF32[baseIndex + 2] = toplefty + j;
-                        this.cubePositionsToMineF32[baseIndex + 3] = 0;
-                        position++;
-                    }
-                }
-            }
-        }
+        // console.log("Min width: ", minTreeWidth, " max width: ", maxTreeWidth, "Min len: ", minTreeLen, " max len: ", maxTreeLen);
     }
 
     private smoothmix(a0: number, a1: number, w: number) {

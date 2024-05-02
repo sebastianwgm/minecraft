@@ -49,7 +49,7 @@ LSys2Rules.set("A", "[&FL\\A]/////[&FL\\A]///////[&FL\\A]");
 // LSys1Rules.set("A","/F[&&FFA]L///[&&FFA]///[&FFA]/////[&FF*LA]");
 LSys2Rules.set("F","S/////F");
 LSys2Rules.set("S", "FL");
-LSys2Rules.set("L", "[^^{-f+f+f-|-f+f+f}]");
+LSys2Rules.set("L", "[^^-f+f+f-|-f+f+f]");
 
 const LSys2TurnAngle = 22.5;
 const LSys2SegmentLength = 0.2; // TODO: Should we change this to 0.2?
