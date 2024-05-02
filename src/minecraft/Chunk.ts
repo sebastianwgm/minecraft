@@ -638,7 +638,11 @@ export class Chunk {
         return false; // No cube was highlighted
     }
 
-    public updateField(deleteTheCube: boolean, selectedCube: Vec3): boolean {
+    public updateField(deleteTheCube: boolean, selectedCube: Vec3, cubesRemoved: number): number {
+
+        if (!deleteTheCube && cubesRemoved == 0) {
+            return cubesRemoved;
+        }
         // Calculate bounds of the chunk
         const topLeftX = this.x - this.size / 2;
         const topLeftY = this.y - this.size / 2;
@@ -650,7 +654,7 @@ export class Chunk {
             selectedCube.x >= bottomRightX ||
             topLeftY > selectedCube.z ||
             selectedCube.z >= bottomRightY) {
-            return false;
+            return cubesRemoved;
         }
 
         let removedCubeType: number = 0.0;
@@ -707,6 +711,6 @@ export class Chunk {
         this.cubePositionsF32 = updatedPositionsF32;
         this.cubeTypesF32 = updatedCubeTypes;
         this.cubes = updatedCubes;
-        return true;
+        return deleteTheCube ? cubesRemoved+1 : cubesRemoved-1;
     }
 }

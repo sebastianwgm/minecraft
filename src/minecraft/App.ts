@@ -97,20 +97,30 @@ export class MinecraftAnimation extends CanvasAnimation {
 
   private lSystem1: Lsystems;
   private lSystem2: Lsystems;
+  private ctx2: CanvasRenderingContext2D | null;
 
   // target cube
   private selectedTargetCube: boolean;
   // array for the target cubes
   private selectedTargetCubeF32: Float32Array;
 
+  private cubesRemoved: number;
+
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
 
     this.canvas2d = document.getElementById("textCanvas") as HTMLCanvasElement;
+    this.ctx2 = this.canvas2d.getContext("2d");
+    if (this.ctx2) {
+      this.ctx2.font = "40px serif";
+      // this.ctx2.fillStyle = "#000000ff";
+      this.ctx2.fillStyle = "#ffffffff";
+    }
     // init the delete cube elements
     this.selectedTargetCube = false;
     this.showCubes = false;
     this.cacheRemoved = [];
+    this.cubesRemoved = 0;
 
     this.ctx = Debugger.makeDebugContext(this.ctx);
     let gl = this.ctx;
@@ -354,6 +364,21 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.playerPosition = newPosition;
     }
 
+    if (this.ctx2) {
+      /// color for background
+      this.ctx2.fillStyle = '#0000004d';
+      this.ctx2.clearRect(0, 0, this.ctx2.canvas.width, this.ctx2.canvas.height);
+      this.ctx2.beginPath();
+      this.ctx2.roundRect(30, 10, 190 , 55, 20);
+      this.ctx2.fill();
+      this.ctx2.beginPath();
+      this.ctx2.roundRect(1060, 10, 180 , 60, 20);
+      this.ctx2.fill();
+      this.ctx2.fillStyle = '#ffffffff';
+      this.ctx2.fillText("Blocks: " + this.cubesRemoved, 50, 50);
+      this.ctx2.fillText("Points: x", 1080, 50);
+    }
+
    this.gui.getCamera().setPos(this.playerPosition);
     this.updateLightAndBackground();
     // Drawing
@@ -494,7 +519,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       }
       this.cacheRemoved = newCache;
       this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
-        chunk.updateField(this.deleteTheCube, selectedCube);
+        this.cubesRemoved = chunk.updateField(this.deleteTheCube, selectedCube, this.cubesRemoved);
       });
       this.deleteTheCube = !this.deleteTheCube;
   }
