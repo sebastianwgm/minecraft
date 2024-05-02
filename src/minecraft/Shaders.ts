@@ -9,11 +9,14 @@ export const blankCubeVSText = `
     attribute vec4 aVertPos;
     attribute vec4 aOffset;
     attribute vec2 aUV;
+
+    attribute float aCubeType;
     
     varying vec4 normal;
     varying vec4 wsPos;
     varying vec2 uv;
     varying float cubeToHighlight;
+    varying float cubeType;
 
     void main () {
 
@@ -25,6 +28,7 @@ export const blankCubeVSText = `
         wsPos = aVertPos + aOffset;
         normal = normalize(aNorm);
         uv = aUV;
+        cubeType = aCubeType;
     }
 `;
 
@@ -39,6 +43,7 @@ export const blankCubeFSText = `
     varying vec4 wsPos;
     varying vec2 uv;
     varying float cubeToHighlight;
+    varying float cubeType;
 
     float random (in vec2 pt, in float seed) {
         return fract(sin( (seed + dot(pt.xy, vec2(12.9898,78.233))))*43758.5453123);
@@ -194,27 +199,37 @@ export const blankCubeFSText = `
         vec4 lightDirection = uLightPos - wsPos;
         float dot_nl = dot(normalize(lightDirection), normalize(normal));
         dot_nl = clamp(dot_nl, 0.0, 1.0);
-        if (cubeToHighlight >= 2.0 - 0.1) {
-            if (cubeToHighlight >= 2.0 - 0.1 && cubeToHighlight <= 2.0 + 0.1) { 
-                gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+        if (cubeType == 0.0) {
+            if (cubeToHighlight >= 2.0 - 0.1) {
+                if (cubeToHighlight >= 2.0 - 0.1 && cubeToHighlight <= 2.0 + 0.1) { 
+                    gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+                } else {
+                    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                }
             } else {
-                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-            }
-        } else {
-            if (wsPos.y < 30.5) {
-                vec3 textureColor = vec3(180.0, 87.0, 15.0) / 256.0;
-                vec3 varyingTexture = textureColor * timeVarying;
-                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* varyingTexture, 1.0);
-            } else if (wsPos.y < 35.5) {
-                vec3 color = vec3(144.0 / 256.0, 238.0 / 256.0, 144.0 / 256.0);
-                vec3 marbleTexture = color * marble;
-                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* marbleTexture, 1.0);
-            } else {
-                vec3 color = vec3(169.0 / 256.0, 163.0 / 256.0, 163.0 / 256.0);
-                vec3 woodTexture = wood * color;
-                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
+                if (wsPos.y < 30.5) {
+                    vec3 textureColor = vec3(180.0, 87.0, 15.0) / 256.0;
+                    vec3 varyingTexture = textureColor * timeVarying;
+                    gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* varyingTexture, 1.0);
+                } else if (wsPos.y < 35.5) {
+                    vec3 color = vec3(144.0 / 256.0, 238.0 / 256.0, 144.0 / 256.0);
+                    vec3 marbleTexture = color * marble;
+                    gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* marbleTexture, 1.0);
+                } else {
+                    vec3 color = vec3(169.0 / 256.0, 163.0 / 256.0, 163.0 / 256.0);
+                    vec3 woodTexture = wood * color;
+                    gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* woodTexture, 1.0);
+                }
             }
         }
-        
+
+        else if (cubeType == 1.0) {
+            gl_FragColor = vec4(83.0/255.0, 46.0/255.0, 24.0/255.0, 1.0); // Tree Brown
+        }
+
+        else if (cubeType == 2.0) {
+            gl_FragColor = vec4(103.0/255.0, 159.0/255.0, 8.0/255.0, 1.0); // Tree Green
+        }
+                
     }
 `;

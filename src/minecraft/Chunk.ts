@@ -16,7 +16,9 @@ const vecsAdd = [new Vec3([0.0, 0.0, 0.0]),  //0
 
 export class Chunk {
     private cubes: number; // Number of cubes that should be *drawn* each frame
+    private origCubes: number;
     private cubePositionsF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
+    private cubeTypesF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
     private cubePositionsToMineF32: Float32Array; // (4 x cubes) array of cube translations, in homogeneous coordinates
     private x : number; // Center of the chunk
     private y : number;
@@ -309,12 +311,13 @@ export class Chunk {
         let tree1 = this.lSystem.getBranches();
 
         // Pass the cubes to be drawn
-        let origCubes = numberOfCubes;
+        this.origCubes = numberOfCubes;
         numberOfCubes += tree1.length;
 
         // numberOfCubes += numOfTreeCubes;
         this.cubes = numberOfCubes;
         this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
+        this.cubeTypesF32 = new Float32Array(numberOfCubes);
         let position = 0;
         for (let i = 0; i < this.size; i++) {
             for (let j = 0; j < this.size; j++) {
@@ -327,6 +330,8 @@ export class Chunk {
                         this.cubePositionsF32[baseIndex + 1] = k; 
                         this.cubePositionsF32[baseIndex + 2] = toplefty + j;
                         this.cubePositionsF32[baseIndex + 3] = 0;
+
+                        this.cubeTypesF32[position] = 0.0;
                         position++;
                     }
                 }
@@ -363,6 +368,8 @@ export class Chunk {
             this.cubePositionsF32[baseIndex + 1] = this.patchHeightMap[maxHeightLocIdx] + branch.getStart().y;
             this.cubePositionsF32[baseIndex + 2] = toplefty + highestCubeLocation[1] + branch.getStart().z;
             this.cubePositionsF32[baseIndex + 3] = 0;
+
+            this.cubeTypesF32[position] = 1.0;
 
             // let posVec = transformedMat.multiplyVec3(this.playerPosition);
 
@@ -529,6 +536,10 @@ export class Chunk {
 
     public cubePositions(): Float32Array {
         return this.cubePositionsF32;
+    }
+
+    public cubeTypes(): Float32Array {
+        return this.cubeTypesF32;
     }
 
     public cubeMiningPositions(): Float32Array {

@@ -170,6 +170,16 @@ export class MinecraftAnimation extends CanvasAnimation {
       new Float32Array(0)
     );
 
+    this.blankCubeRenderPass.addInstancedAttribute("aCubeType",
+      1,
+      this.ctx.FLOAT,
+      false,
+      1 * Float32Array.BYTES_PER_ELEMENT,
+      0,
+      undefined,
+      new Float32Array(0)
+    );
+
     this.blankCubeRenderPass.addUniform("uLightPos",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform4fv(loc, this.lightPosition.xyzw);
@@ -342,6 +352,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     // Iterate over each chunk in the stack
     this.stackOfChunks.forEach((chunk: Chunk, key: string) => {
       this.blankCubeRenderPass.updateAttributeBuffer('aOffset', chunk.cubePositions());
+      this.blankCubeRenderPass.updateAttributeBuffer('aCubeType', chunk.cubeTypes());
       this.blankCubeRenderPass.drawInstanced(chunk.numCubes());
     });
     
