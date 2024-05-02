@@ -14,6 +14,10 @@ const vecsAdd = [new Vec3([0.0, 0.0, 0.0]),  //0
                     new Vec3([1.0, 1.0, 0.0]), //6
                     new Vec3([1.0, 1.0, 1.0])]; //7
 
+function randomInt(min: number, max: number) {
+    return Math.floor(Math.random() * (max - min + 1) + min);
+}
+
 export class Chunk {
     private cubes: number; // Number of cubes that should be *drawn* each frame
     private origCubes: number;
@@ -288,49 +292,92 @@ export class Chunk {
             }
         }
 
-        let highestCubeLocation = [0,0];
-        let maxHeight = 0;
+        let potentialtreeLocations: number[] = [];
+        let locationOkay: boolean = true;
+        for (let i = 5; i < this.size-5; i++) {
+            for (let j = 5; j < this.size-5; j++) {
+                locationOkay = true;
+                const idx1 = this.size * i + j;
+                const height1 = this.patchHeightMap[idx1];
+                for (let k = -5; k <= 5; k++) {
+                    for (let l = -5; l <= 5; l++) {
+                        const idx2 = this.size * k + l;
+                        const height2 = this.patchHeightMap[idx2];
+                        if (height1 < height2) {
+                            locationOkay = false;
+                            break;
+                        }
+                    }
+                }
+                if (locationOkay) {
+                    potentialtreeLocations.push(idx1);
+                    j += 10;
+                }
+            }
+            if (locationOkay) {
+                // potentialtreeLocations.push(idx1);
+                i += 10;
+            }
+        }
 
+        let treeLocations: number[] = [];
+        let trees: TreeBranch[][] = [];
+        let systemsChosen: number[] = []
+        let treeCubes = 0;
+
+        for (let i=0; i<3; i++) {
+            let loc = randomInt(0, potentialtreeLocations.length-1);
+            treeLocations.push(potentialtreeLocations[loc]);
+            let p = Math.random();
+            let tree: TreeBranch[];
+            if (p < 0.25) {
+                this.lSystem1.processForDepth(null);
+                tree = this.lSystem1.getBranches();
+                systemsChosen.push(1);
+            }
+            else {
+                this.lSystem2.processForDepth(null);
+                tree = this.lSystem2.getBranches();
+                systemsChosen.push(2);
+            }
+            trees.push(tree);
+            treeCubes += tree.length;
+        }
+
+        // let highestCubeLocation = [0,0];
+        let maxHeight = 0;
         let numberOfCubes = 0;
         for (let i = 0; i < this.size; i++) {
             for (let j = 0; j < this.size; j++) {
                 const idx = this.size * i + j;
                 const height = this.patchHeightMap[idx]; 
-                if (height > maxHeight)
-                {
-                    highestCubeLocation = [i,j];
-                    maxHeight = height;
-                }
+                // if (height > maxHeight)
+                // {
+                //     highestCubeLocation = [i,j];
+                //     maxHeight = height;
+                // }
                 numberOfCubes += this.numberOfCubesToDraw(this.patchHeightMap, i, j, height);
             }
         }
 
-        // console.log("Max height:", maxHeight, " at location: ", highestCubeLocation);
-        // console.log("Max height:", maxHeight, " at location: ", highestCubeLocation);
-
-        // // Pass the cubes to be drawn
-        // numberOfCubes += numOfTreeCubes
-        // let numOfTreeCubes = 0;
-
-        let systemChosen: number;
-        let p = Math.random();
-        let tree: TreeBranch[];
-        if (p < 0.5) {
-            this.lSystem1.processForDepth(null);
-            tree = this.lSystem1.getBranches();
-            systemChosen = 1;
-        }
-        else {
-            this.lSystem2.processForDepth(null);
-            tree = this.lSystem2.getBranches();
-            systemChosen = 2;
-        }
+        // let systemChosen: number;
+        // let p = Math.random();
+        // let tree: TreeBranch[];
+        // if (p < 0.5) {
+        //     this.lSystem1.processForDepth(null);
+        //     tree = this.lSystem1.getBranches();
+        //     systemChosen = 1;
+        // }
+        // else {
+        //     this.lSystem2.processForDepth(null);
+        //     tree = this.lSystem2.getBranches();
+        //     systemChosen = 2;
+        // }
 
         // Pass the cubes to be drawn
         this.origCubes = numberOfCubes;
-        numberOfCubes += tree.length;
+        numberOfCubes += treeCubes
 
-        // numberOfCubes += numOfTreeCubes;
         this.cubes = numberOfCubes;
         this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
         this.cubeTypesF32 = new Float32Array(numberOfCubes);
@@ -359,119 +406,53 @@ export class Chunk {
             }
         }
 
+        for (let i =0; i< trees.length; i++) {
+            let tree = trees[i];
+            for (const branch of tree) {
 
-        // this.cubes = numberOfCubes;
-        // this.cubePositionsF32 = new Float32Array(4 * numberOfCubes);
+                const idx = treeLocations[i];
+                // this.size * i + j;
+                const treeJ = treeLocations[i] % this.size;
+                const treeI = Math.floor((treeLocations[i]-treeJ)/this.size);
+                const baseIndex = 4 * position;
+                this.cubePositionsF32[baseIndex] = topleftx + treeI + branch.getStart().x;
+                this.cubePositionsF32[baseIndex + 1] = this.patchHeightMap[idx] + branch.getStart().y;
+                this.cubePositionsF32[baseIndex + 2] = toplefty + treeJ + branch.getStart().z;
+                this.cubePositionsF32[baseIndex + 3] = 0;
 
-        // console.log("Playerpos: ", this.playerPosition);
+                console.log(treeI, treeJ, treeLocations[i]);
 
-
-        // console.log(tree.length);
-
-        // let maxMoves = this.lSystem.getMaxMoves();
-        // let lSystemSegLength = this.lSystem.getSegmentLength();
-        // let minTreeHeight = 3000;
-        // let maxTreeHeight = 0;
-        // let minTreeLen = 3000;
-        // let maxTreeLen = 0;
-        // let minTreeWidth = 3000;
-        // let maxTreeWidth = 0;
-        // let position = 4*origCubes;
-        for (const branch of tree) {
-            // let branchDirWithLen = Vec3.difference(branch.getEnd(), branch.getStart());
-            // let branchDir = branchDirWithLen.copy().normalize();
-            // let branchLen = branchDirWithLen.length();
-            // let branchScaling = (maxMoves-branch.getNumOfMoves()-1)/6; // TODO: Why 6?
-            // let rotQuat = Quat.rotationTo(new Vec3([0,1,0]), branchDir);
-            // let rotMat = rotQuat.toMat4();
-            // let transmat = Mat4.identity.copy().translate(branch.getStart());
-
-            // let numSegments = branchLen/lSystemSegLength;
-
-            // let transformedMat = Mat4.identity.copy().scale(new Vec3([branchScaling, numSegments, branchScaling]));
-            // rotMat.multiply(transformedMat, transformedMat);
-            // transmat.multiply(transformedMat, transformedMat);
-
-            const maxHeightLocIdx = this.size * highestCubeLocation[0] + highestCubeLocation[1];
-            const baseIndex = 4 * position;
-            this.cubePositionsF32[baseIndex] = topleftx + highestCubeLocation[0] + branch.getStart().x;
-            this.cubePositionsF32[baseIndex + 1] = this.patchHeightMap[maxHeightLocIdx] + branch.getStart().y;
-            this.cubePositionsF32[baseIndex + 2] = toplefty + highestCubeLocation[1] + branch.getStart().z;
-            this.cubePositionsF32[baseIndex + 3] = 0;
-
-            // if (branch.getStart().y > maxTreeHeight) {
-            //     maxTreeHeight = branch.getStart().y;
-            // }
-            // if (branch.getStart().y < minTreeHeight) {
-            //     minTreeHeight = branch.getStart().y;
-            // }
-            // if (branch.getStart().x > maxTreeWidth) {
-            //     maxTreeWidth = branch.getStart().x;
-            // }
-            // if (branch.getStart().x < minTreeWidth) {
-            //     minTreeWidth = branch.getStart().x;
-            // }
-            // if (branch.getStart().z > maxTreeLen) {
-            //     maxTreeLen = branch.getStart().z;
-            // }
-            // if (branch.getStart().z < minTreeLen) {
-            //     minTreeLen = branch.getStart().z;
-            // }
-
-            // if (branch.isLeaf()) {
-            //     this.cubeTypesF32[position] = 2.0;
-            // }
-            // else {
-            //     this.cubeTypesF32[position] = 1.0;
-            // }
-
-            if (systemChosen == 2) {
-                if (branch.getStart().y < 3.0) {
-                    this.cubeTypesF32[position] = 1.0; // brown
-                }
-                else if (branch.getStart().y < 4.0) {
-                    // mix of brown and green
-                    let rand = Math.random();
-                    if (rand < 0.5) {
-                        this.cubeTypesF32[position] = 1.0;
+                if (systemsChosen[i] == 2) {
+                    if (branch.getStart().y < 3.0) {
+                        this.cubeTypesF32[position] = 1.0; // brown
+                    }
+                    else if (branch.getStart().y < 4.0) {
+                        // mix of brown and green
+                        let rand = Math.random();
+                        if (rand < 0.5) {
+                            this.cubeTypesF32[position] = 1.0;
+                        }
+                        else {
+                            this.cubeTypesF32[position] = 2.0;
+                        }
                     }
                     else {
+                        this.cubeTypesF32[position] = 2.0; // green
+                    }
+                }         
+
+                else {
+                    if (branch.isLeaf() || position >= this.origCubes + 100) {
                         this.cubeTypesF32[position] = 2.0;
                     }
+                    else {
+                        this.cubeTypesF32[position] = 1.0;
+                    }
                 }
-                else {
-                    this.cubeTypesF32[position] = 2.0; // green
-                }
-            }         
-
-            else {
-                if (branch.isLeaf() || position >= this.origCubes + 100) {
-                    this.cubeTypesF32[position] = 2.0;
-                }
-                else {
-                    this.cubeTypesF32[position] = 1.0;
-                }
+                
+                position++;
             }
-
-            // let posVec = transformedMat.multiplyVec3(this.playerPosition);
-
-            // this.cubePositionsF32[baseIndex] = posVec.x;
-            // this.cubePositionsF32[baseIndex + 1] = posVec.y;
-            // this.cubePositionsF32[baseIndex + 2] = posVec.z;
-            // this.cubePositionsF32[baseIndex + 3] = 0;
-
-            // this.cubePositionsF32[baseIndex] = this.playerPosition.x + branch.getStart().x;
-            // this.cubePositionsF32[baseIndex + 1] = this.playerPosition.y + branch.getStart().y;
-            // this.cubePositionsF32[baseIndex + 2] = this.playerPosition.z + branch.getStart().z;
-            // this.cubePositionsF32[baseIndex + 3] = 0;
-
-            // console.log(this.playerPosition.x, transformedMat.at(0), this.playerPosition.y, transformedMat.at(1), this.playerPosition.z, transformedMat.at(2));
-            // console.log(posVec.x, posVec.y, posVec.z, this.playerPosition);
-            
-            position++;
         }
-
-        // console.log("Min width: ", minTreeWidth, " max width: ", maxTreeWidth, "Min len: ", minTreeLen, " max len: ", maxTreeLen);
     }
 
     private smoothmix(a0: number, a1: number, w: number) {
