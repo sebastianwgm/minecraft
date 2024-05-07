@@ -7,9 +7,7 @@ Run the python script make-minecraft.py
 
 <strong>Launch the HTTP server:</strong> from the project directory containing dist/ run the following command: http-server dist -c-1
 
-<strong>Gameplay:</strong> The goal of the game is to collect golden block as much as you can, every collected golden block will give you one point, however, if the player moves towards or step on top of a lava block, the player will lose all their points.
-
-To remove and/or add a block, the player should use the mouse right click. The player is not allow to place a cube without removing a cube beforehand, the top left blocks counter shows
+<strong>Gameplay:</strong> The goal of the game is to collect golden block as much as you can, every collected golden block will give you one point, however, if the player moves towards or step on top of a lava block, the player will lose all their points. To remove and/or add a block, the player should use the mouse right click. The player is not allow to place a cube without removing a cube beforehand, the top left blocks counter shows
 
 <img width="716" alt="Screenshot 2024-05-07 at 6 23 22 PM" src="https://github.com/sebastianwgm/minecraft/assets/122843474/8b3cafb7-d439-41b6-9876-61b05ac30e69">
 
